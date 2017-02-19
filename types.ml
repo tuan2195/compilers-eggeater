@@ -6,7 +6,6 @@ type ('a, 'b) either =
   | Left of 'a
   | Right of 'b
 
-               
 type sourcespan = (Lexing.position * Lexing.position)
 exception UnboundId of string * sourcespan (* name, where used *)
 exception UnboundFun of string * sourcespan (* name of fun, where used *)
@@ -15,8 +14,6 @@ exception DuplicateId of string * sourcespan * sourcespan (* name, where used, w
 exception DuplicateFun of string * sourcespan * sourcespan (* name, where used, where defined *)
 exception Overflow of int * sourcespan (* value, where used *)
 exception Arity of int * int * sourcespan (* intended arity, actual arity, where called *)
-
-
 
 type prim1 =
   | Add1
