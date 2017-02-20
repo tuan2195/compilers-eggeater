@@ -228,11 +228,11 @@ let const_false        = Sized(DWORD_PTR, HexConst(const_false_value))
 let bool_mask          = Sized(DWORD_PTR, HexConst(0x80000000))
 let tag_as_bool        = Sized(DWORD_PTR, HexConst(0x00000007))
 
-let err_COMP_NOT_NUM   = Sized(DWORD_PTR, HexConst(1))
-let err_ARITH_NOT_NUM  = Sized(DWORD_PTR, HexConst(2))
-let err_LOGIC_NOT_BOOL = Sized(DWORD_PTR, HexConst(3))
-let err_IF_NOT_BOOL    = Sized(DWORD_PTR, HexConst(4))
-let err_OVERFLOW       = Sized(DWORD_PTR, HexConst(5))
+let err_COMP_NOT_NUM   = HexConst(1)
+let err_ARITH_NOT_NUM  = HexConst(2)
+let err_LOGIC_NOT_BOOL = HexConst(3)
+let err_IF_NOT_BOOL    = HexConst(4)
+let err_OVERFLOW       = HexConst(5)
 
 let label_err_COMP_NOT_NUM   = "__err_COMP_NOT_NUM__"
 let label_err_ARITH_NOT_NUM  = "__err_ARITH_NOT_NUM__"
@@ -319,152 +319,174 @@ and check_bool label scratch arg =
 and check_bools err scratch left right = check_bool err scratch left @ check_bool err scratch right
 and check_overflow err = [ IJo(err); ]
 and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (is_tail : bool) : instruction list =
-  match e with
-  | ALet(id, e, body, _) ->
-     let prelude = compile_cexpr e (si + 1) env num_args false in
-     let body = compile_aexpr body (si + 1) ((id, RegOffset(~-word_size * si, EBP))::env) num_args is_tail in
-     prelude
-     @ [ IMov(RegOffset(~-word_size * si, EBP), Reg(EAX)) ]
-     @ body
-  | ACExpr e -> compile_cexpr e si env num_args is_tail
+    match e with
+    | ALet(id, e, body, _) ->
+       let prelude = compile_cexpr e (si + 1) env num_args false in
+       let body = compile_aexpr body (si + 1) ((id, RegOffset(~-word_size * si, EBP))::env) num_args is_tail in
+       prelude
+       @ [ IMov(RegOffset(~-word_size * si, EBP), Reg(EAX)) ]
+       @ body
+    | ACExpr e -> compile_cexpr e si env num_args is_tail
 and compile_cexpr (e : tag cexpr) si env num_args is_tail =
-  match e with
-  | CPrim1(op, e, tag) ->
-     let e_reg = compile_imm e env in
-     begin match op with
-     | Add1 ->
-        (mov_if_needed (Reg EAX) e_reg)
-        @ (check_num label_err_ARITH_NOT_NUM (Reg EAX))
-        @ [ IAdd(Reg(EAX), Const(2)) ]
-        @ (check_overflow label_err_OVERFLOW)
-     | Sub1 ->
-        (mov_if_needed (Reg EAX) e_reg)
-        @ (check_num label_err_ARITH_NOT_NUM (Reg EAX))
-        @ [ IAdd(Reg(EAX), Const(~-2)) ]
-        @ (check_overflow label_err_OVERFLOW)
-     | IsBool | IsNum ->
-        (mov_if_needed (Reg EAX) e_reg) @
-          [
-            IShl(Reg(EAX), Const(31));
-            IOr(Reg(EAX), const_false)
-          ]
-     | IsTuple -> failwith "Not yet implemented: IsTuple"
-     | Not ->
-        (mov_if_needed (Reg EAX) e_reg)
-        @ (check_bool label_err_LOGIC_NOT_BOOL (Reg EDX) (Reg EAX))
-        @ [ IXor(Reg(EAX), bool_mask) ]
-     | Print ->
-        (mov_if_needed (Reg EAX) e_reg)
-        @ call "print" [Sized(DWORD_PTR, Reg EAX)]
-     | PrintStack ->
-        (mov_if_needed (Reg EAX) e_reg)
-        @ call "print_stack"
-               [Sized(DWORD_PTR, Reg(EAX));
-                Sized(DWORD_PTR, Reg(ESP));
-                Sized(DWORD_PTR, Reg(EBP));
-                Sized(DWORD_PTR, Const(num_args))]
-     end
-  | CPrim2(op, left, right, tag) ->
-     let left_reg = compile_imm left env in
-     let right_reg = compile_imm right env in
-     let arith_op op =
-       (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
-       @ check_nums label_err_ARITH_NOT_NUM (Reg EAX) (Reg EDX)
-       @ [ op (Reg(EAX), Reg(EDX)) ]
-       @ check_overflow label_err_OVERFLOW in
-     let comp_op op =
-       (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
-       @ (check_nums label_err_COMP_NOT_NUM (Reg EAX) (Reg EDX))
-       @ [
-           (* More intuitive implementation *)
-           IMov(Reg(EAX), Reg(EDX));
-           ICmp(Reg(EAX), right_reg);
-           IMov(Reg(EAX), const_true);
-           op (label_done tag);
-           IMov(Reg(EAX), const_false);
-           ILabel(label_done tag);
-           (*IMov(Reg(EAX), left_reg);*)
-           (*ICmp(Reg(EAX), right_reg);*)
-           (*IMov(Reg(EAX), const_false);*)
-           (*op done_label;*)
-           (*ILabel(true_label);*)
-           (*IMov(Reg(EAX), const_true);*)
-           (*ILabel(done_label);*)
-         ] in
-     let logic_op op =
-       (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
-       @ (check_bools label_err_LOGIC_NOT_BOOL (Reg ECX) (Reg EAX) (Reg EDX))
-       @ [
-           (*IMov(Reg(EAX), left_reg);*)
-           op (Reg(EAX), Reg(EDX))
-         ]  in
-     begin match op with
-     | Plus -> arith_op (fun (dest, src) -> IAdd(dest, src))
-     | Minus -> arith_op (fun (dest, src) -> ISub(dest, src))
-     | Times ->
-        (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
-        @ check_nums label_err_ARITH_NOT_NUM (Reg EAX) (Reg EDX)
-        @ [ ISar(Reg(EAX), Const(1)); IMul(Reg(EAX), Reg(EDX)) ]
-        @ check_overflow label_err_OVERFLOW
-     | Less -> comp_op (fun dest -> IJl dest)
-     | Greater -> comp_op (fun dest -> IJg dest)
-     | LessEq -> comp_op (fun dest -> IJle dest)
-     | GreaterEq -> comp_op (fun dest -> IJge dest)
-     (*| Less -> comp_op (fun dest -> IJge dest)*)
-     (*| Greater -> comp_op (fun dest -> IJle dest)*)
-     (*| LessEq -> comp_op (fun dest -> IJg dest)*)
-     (*| GreaterEq -> comp_op (fun dest -> IJl dest)*)
-     | Eq ->
-        (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
-        @ (check_nums label_err_COMP_NOT_NUM (Reg EAX) (Reg EDX))
-        @ [
-            ICmp(Reg(EAX), Reg(EDX));
-            IMov(Reg(EAX), const_true);
-            IJe(label_done tag);
-            IMov(Reg(EAX), const_false);
-            ILabel(label_done tag)
-          ]
-     | And -> logic_op (fun (dest, src) -> IAnd(dest, src))
-     | Or -> logic_op (fun (dest, src) -> IOr(dest, src))
-     end
-  | CIf(cond, thn, els, tag) ->
-     let cond_reg = compile_imm cond env in
-     (mov_if_needed (Reg EAX) cond_reg)
-     @ (check_bool label_err_IF_NOT_BOOL (Reg ECX) (Reg EAX))
-     @ [
-         ICmp(Reg(EAX), const_true);
-         IJne(label_else tag)
-       ]
-     @ (compile_aexpr thn si env num_args is_tail)
-     @ [ IJmp(label_end tag); ILabel(label_else tag) ]
-     @ (compile_aexpr els si env num_args is_tail)
-     @ [ ILabel(label_end tag) ]
-  | CImmExpr i -> [ IMov(Reg(EAX), compile_imm i env) ]
-  | CApp(name, args, _) ->
-     (* This implementation ignores tail calls entirely.  Please fix it. *)
-     if is_tail && (num_args = List.length args) then
-        [   ILineComment(sprintf "Tail-call to function %s" name) ] @
-            List.flatten (List.mapi
-                (fun i a -> [ IMov(Reg(EAX), a); IMov(RegOffset(word_size*(i+2), EBP), Reg(EAX)); ])
-                (List.rev_map (fun a -> compile_imm a env) args)) @
-        [   IJmp(label_func_begin name) ]
-     else
-        [   ILineComment(sprintf "Call to function %s" name) ]
-        @ call name (List.map (fun a -> compile_imm a env) args)
-        (*@   (List.map*)
-                (*(fun a -> IPush(Sized(DWORD_PTR, a)))*)
-                (*(List.map (fun a -> compile_imm a env) args)) @*)
-        (*[   ICall(name);*)
-            (*IAdd(Reg(ESP), Const((List.length args)*word_size)); ]*)
-  | CTuple(elts, _) ->
-     (* FILL: You need to implement this case *)
-     failwith "not yet implemented: CTuple compilation"
-  | CGetItem(coll, index, _) ->
-     (* FILL: You need to implement this case *)
-     failwith "not yet implemented: CGetItem compilation"
+    match e with
+    | CPrim1(op, e, tag) ->
+       let e_reg = compile_imm e env in
+       begin match op with
+       | Add1 ->
+          (mov_if_needed (Reg EAX) e_reg)
+          @ (check_num label_err_ARITH_NOT_NUM (Reg EAX))
+          @ [ IAdd(Reg(EAX), Const(2)) ]
+          @ (check_overflow label_err_OVERFLOW)
+       | Sub1 ->
+          (mov_if_needed (Reg EAX) e_reg)
+          @ (check_num label_err_ARITH_NOT_NUM (Reg EAX))
+          @ [ IAdd(Reg(EAX), Const(~-2)) ]
+          @ (check_overflow label_err_OVERFLOW)
+       | IsBool | IsNum ->
+          (mov_if_needed (Reg EAX) e_reg) @
+            [
+              IShl(Reg(EAX), Const(31));
+              IOr(Reg(EAX), const_false)
+            ]
+       | IsTuple -> failwith "Not yet implemented: IsTuple"
+       | Not ->
+          (mov_if_needed (Reg EAX) e_reg)
+          @ (check_bool label_err_LOGIC_NOT_BOOL (Reg EDX) (Reg EAX))
+          @ [ IXor(Reg(EAX), bool_mask) ]
+       | Print ->
+          (mov_if_needed (Reg EAX) e_reg)
+          @ call "print" [Sized(DWORD_PTR, Reg EAX)]
+       | PrintStack ->
+          (mov_if_needed (Reg EAX) e_reg)
+          @ call "print_stack"
+                 [Sized(DWORD_PTR, Reg(EAX));
+                  Sized(DWORD_PTR, Reg(ESP));
+                  Sized(DWORD_PTR, Reg(EBP));
+                  Sized(DWORD_PTR, Const(num_args))]
+       end
+    | CPrim2(op, left, right, tag) ->
+       let left_reg = compile_imm left env in
+       let right_reg = compile_imm right env in
+       let arith_op op =
+         (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+         @ check_nums label_err_ARITH_NOT_NUM (Reg EAX) (Reg EDX)
+         @ [ op (Reg(EAX), Reg(EDX)) ]
+         @ check_overflow label_err_OVERFLOW in
+       let comp_op op =
+         (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+         @ (check_nums label_err_COMP_NOT_NUM (Reg EAX) (Reg EDX))
+         @ [
+             (* More intuitive implementation *)
+             ICmp(Reg(EAX), Reg(EDX));
+             IMov(Reg(EAX), const_true);
+             op (label_done tag);
+             IMov(Reg(EAX), const_false);
+             ILabel(label_done tag);
+             (*IMov(Reg(EAX), left_reg);*)
+             (*ICmp(Reg(EAX), right_reg);*)
+             (*IMov(Reg(EAX), const_false);*)
+             (*op (done_labe tag)l;*)
+             (*IMov(Reg(EAX), const_true);*)
+             (*ILabel(done_label tag);*)
+           ] in
+       let logic_op op =
+         (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+         @ (check_bools label_err_LOGIC_NOT_BOOL (Reg ECX) (Reg EAX) (Reg EDX))
+         @ [
+             (*IMov(Reg(EAX), left_reg);*)
+             op (Reg(EAX), Reg(EDX))
+           ]  in
+       begin match op with
+       | Plus -> arith_op (fun (dest, src) -> IAdd(dest, src))
+       | Minus -> arith_op (fun (dest, src) -> ISub(dest, src))
+       | Times ->
+          (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+          @ check_nums label_err_ARITH_NOT_NUM (Reg EAX) (Reg EDX)
+          @ [ ISar(Reg(EAX), Const(1)); IMul(Reg(EAX), Reg(EDX)) ]
+          @ check_overflow label_err_OVERFLOW
+       | Less -> comp_op (fun dest -> IJl dest)
+       | Greater -> comp_op (fun dest -> IJg dest)
+       | LessEq -> comp_op (fun dest -> IJle dest)
+       | GreaterEq -> comp_op (fun dest -> IJge dest)
+       (*| Less -> comp_op (fun dest -> IJge dest)*)
+       (*| Greater -> comp_op (fun dest -> IJle dest)*)
+       (*| LessEq -> comp_op (fun dest -> IJg dest)*)
+       (*| GreaterEq -> comp_op (fun dest -> IJl dest)*)
+       | Eq ->
+          (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+          @ (check_nums label_err_COMP_NOT_NUM (Reg EAX) (Reg EDX))
+          @ [
+              ICmp(Reg(EAX), Reg(EDX));
+              IMov(Reg(EAX), const_true);
+              IJe(label_done tag);
+              IMov(Reg(EAX), const_false);
+              ILabel(label_done tag)
+            ]
+       | And -> logic_op (fun (dest, src) -> IAnd(dest, src))
+       | Or -> logic_op (fun (dest, src) -> IOr(dest, src))
+       end
+    | CIf(cond, thn, els, tag) ->
+       let cond_reg = compile_imm cond env in
+       (mov_if_needed (Reg EAX) cond_reg)
+       @ (check_bool label_err_IF_NOT_BOOL (Reg ECX) (Reg EAX))
+       @ [ ICmp(Reg(EAX), const_true); IJne(label_else tag) ]
+       @ (compile_aexpr thn si env num_args is_tail)
+       @ [ IJmp(label_end tag); ILabel(label_else tag) ]
+       @ (compile_aexpr els si env num_args is_tail)
+       @ [ ILabel(label_end tag) ]
+    | CImmExpr i -> [ IMov(Reg(EAX), compile_imm i env) ]
+    | CApp(name, args, _) ->
+        if is_tail && (num_args = List.length args) then
+           [   ILineComment(sprintf "Tail-call to function %s" name) ] @
+              List.flatten (List.mapi
+                  (fun i a -> [ IMov(Reg(EAX), a); IMov(RegOffset(word_size*(i+2), EBP), Reg(EAX)); ])
+                  (List.rev_map (fun a -> compile_imm a env) args)) @
+           [   IJmp(label_func_begin name) ]
+        else
+           call name (List.map (fun a -> compile_imm a env) args)
+    | CTuple(expr_ls, _) ->
+        let size = List.length expr_ls in
+        let prelude = [
+            IMov(Reg(EAX), Reg(ESI));
+            IOr(Reg(EAX), HexConst(0x00000001));
+            IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Const(size));
+            IAdd(Reg(ESI), Const(word_size)); ] in
+        let load = List.flatten( List.rev_map
+            (fun a -> [
+                IMov(Sized(DWORD_PTR, Reg(EDX)), compile_imm a env);
+                IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Reg(EDX));
+                IAdd(Reg(ESI), Const(word_size)); ] )
+            expr_ls) in
+        let padding =
+            if size mod 2 = 0 then
+                [ IInstrComment(IAdd(Reg(ESI), Const(word_size)), "Padding: size is even"); ]
+            else [] in
+        prelude @ load @ padding
+       (* FILL: You need to implement this case *)
+       (*failwith "not yet implemented: CTuple compilation"*)
+    | CGetItem(tup, idx, _) -> [
+        IMov(Sized(DWORD_PTR, Reg(EAX)), compile_imm tup env);
+        ITest(Sized(DWORD_PTR, Reg(EAX)), HexConst(0x00000001));
+        IJz(label_err_ARITH_NOT_NUM);
+        ISub(Reg(EAX), Const(1));
+        IMov(Sized(DWORD_PTR, Reg(ECX)), compile_imm idx env);
+        (* TODO: check if number *)
+        ISar(Reg(ECX), Const(1));
+        IAdd(Reg(ECX), Const(1));
+        IMov(Sized(DWORD_PTR, Reg(EDX)), RegOffset(0, EAX));
+        ICmp(Reg(ECX), Reg(EDX));
+        IJg(label_err_LOGIC_NOT_BOOL);
+        IMov(Reg(EAX), RegOffsetReg(EAX, ECX, word_size, 0));
+        ]
+
+
+
+
+       (* FILL: You need to implement this case *)
+       (*failwith "not yet implemented: CGetItem compilation"*)
 and compile_imm e env =
   match e with
-  | ImmNum(n, _) -> Const((n lsl 1))
+  | ImmNum(n, _) -> Const(n lsl 1)
   | ImmBool(true, _) -> const_true
   | ImmBool(false, _) -> const_false
   | ImmId(x, _) -> (find env x)
@@ -474,7 +496,7 @@ and call label args =
     let len = List.length args in
     if len = 0 then []
     else [ IInstrComment(IAdd(Reg(ESP), Const(4 * len)), sprintf "Popping %d arguments" len) ] in
-  setup @ [ ICall(label) ] @ teardown
+    [ ILineComment(sprintf "Call to function %s" label) ] @ setup @ [ ICall(label) ] @ teardown
 and optimize ls =
     match ls with
     | [] -> []
@@ -525,7 +547,8 @@ global our_code_starts_here" in
      let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" [] body in
      let heap_start = [
          ILineComment("heap start");
-         IInstrComment(IMov(Reg(ESI), RegOffset(4, ESP)), "Load ESI with our argument, the heap pointer");
+         (*IInstrComment(IMov(Reg(ESI), RegOffset(4, ESP)), "Load ESI with our argument, the heap pointer");*)
+         IInstrComment(IMov(Reg(ESI), RegOffset(8, EBP)), "Load ESI with our argument, the heap pointer");
          IInstrComment(IAdd(Reg(ESI), Const(7)), "Align it to the nearest multiple of 8");
          IInstrComment(IAnd(Reg(ESI), HexConst(0xFFFFFFF8)), "by adding no more than 7 to it")
        ] in

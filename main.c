@@ -60,10 +60,10 @@ void error(int i) {
 }
 
 int main(int argc, char** argv) {
-  int* HEAP = calloc(100000, sizeof (int));
+  int* HEAP = calloc(1024, sizeof (int));
 
   int result = our_code_starts_here(HEAP);
   print(result);
-  return 0;
+  exit(0);
 }
 
