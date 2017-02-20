@@ -282,33 +282,7 @@ and check_num err arg =
     ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));
     IJnz(err)
   ]
-(*and check_num label arg =*)
-    (*match arg_to_const arg with*)
-    (*| Some(x) ->*)
-        (*if (x = const_false_value || x = const_true_value) then*)
-            (*[ IJmp(label); ]*)
-        (*else*)
-            (*[]*)
-    (*| _ ->*)
-        (*[*)
-            (*ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));*)
-            (*IJnz(label)*)
-        (*]*)
 and check_nums err left right = check_num err left @ check_num err right
-(*and check_bool label scratch arg =*)
-    (*match arg_to_const arg with*)
-    (*| Some(x) ->*)
-        (*if (x = const_false_value || x = const_true_value) then*)
-            (*[]*)
-        (*else*)
-            (*[ IJmp(label); ]*)
-    (*| _ ->*)
-        (*(mov_if_needed scratch arg) @*)
-        (*[*)
-          (*IAnd(scratch, tag_as_bool);*)
-          (*ICmp(scratch, tag_as_bool);*)
-          (*IJne(label)*)
-        (*]*)
 and check_bool err scratch arg =
     (mov_if_needed scratch arg) @
     [
@@ -465,41 +439,22 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
             if size mod 2 = 0 then [ IAdd(Reg(ESI), Const(word_size*(size+2))); ]
             else [ IAdd(Reg(ESI), Const(word_size*(size+2))); ] in
         prelude @ load @ padding
-        (*let size = List.length expr_ls in*)
-        (*let prelude = [*)
-            (*IMov(Reg(EAX), Reg(ESI));*)
-            (*IOr(Reg(EAX), HexConst(0x00000001));*)
-            (*IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Const(size));*)
-            (*IAdd(Reg(ESI), Const(word_size)); ] in*)
-        (*let load = List.flatten( List.rev_map*)
-            (*(fun a -> [*)
-                (*IMov(Sized(DWORD_PTR, Reg(EDX)), compile_imm a env);*)
-                (*IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Reg(EDX));*)
-                (*IAdd(Reg(ESI), Const(word_size)); ] )*)
-            (*expr_ls) in*)
-        (*let padding =*)
-            (*if size mod 2 = 0 then*)
-                (*[ IInstrComment(IAdd(Reg(ESI), Const(word_size)), "Padding: size is even"); ]*)
-            (*else [] in*)
-        (*prelude @ load @ padding*)
-       (* FILL: You need to implement this case *)
-       (*failwith "not yet implemented: CTuple compilation"*)
     | CGetItem(tup, idx, _) -> [
         IMov(Sized(DWORD_PTR, Reg(EAX)), compile_imm tup env);
         ITest(Sized(DWORD_PTR, Reg(EAX)), HexConst(0x00000001));
+        (* TODO: error if not tuple *)
         IJz(label_err_ARITH_NOT_NUM);
         ISub(Reg(EAX), Const(1));
         IMov(Sized(DWORD_PTR, Reg(ECX)), compile_imm idx env);
-        (* TODO: check if number *)
+        (* TODO: error if not number *)
         ISar(Reg(ECX), Const(1));
         IAdd(Reg(ECX), Const(1));
         IMov(Sized(DWORD_PTR, Reg(EDX)), RegOffset(0, EAX));
         ICmp(Reg(ECX), Reg(EDX));
+        (* TODO: error if index out of bounds *)
         IJg(label_err_LOGIC_NOT_BOOL);
         IMov(Reg(EAX), RegOffsetReg(EAX, ECX, word_size, 0));
         ]
-       (* FILL: You need to implement this case *)
-       (*failwith "not yet implemented: CGetItem compilation"*)
 and compile_imm e env =
   match e with
   | ImmNum(n, _) -> Const(n lsl 1)
@@ -520,7 +475,8 @@ and optimize ls =
         if o1 = o2 && b1 = b2 && r1 = r2 then
             (List.hd ls)::optimize rest
         else
-            (List.nth ls 0)::(List.nth ls 1)::optimize rest
+            (List.hd ls)::optimize (List.tl ls)
+            (*(List.nth ls 0)::(List.nth ls 1)::optimize rest*)
     | what::rest ->
         what::optimize rest
 (*and optimize instrs = instrs*)
