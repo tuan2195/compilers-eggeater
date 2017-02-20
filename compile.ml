@@ -277,45 +277,45 @@ let rec compile_fun fun_name args e : (instruction list * instruction list * ins
 and mov_if_needed dest src =
   if dest = src then []
   else [ IMov(dest, src) ]
-(*and check_num err arg =*)
-  (*[*)
-    (*ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));*)
-    (*IJnz(err)*)
-  (*]*)
-and check_num label arg =
-    match arg_to_const arg with
-    | Some(x) ->
-        if (x = const_false_value || x = const_true_value) then
-            [ IJmp(label); ]
-        else
-            []
-    | _ ->
-        [
-            ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));
-            IJnz(label)
-        ]
+and check_num err arg =
+  [
+    ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));
+    IJnz(err)
+  ]
+(*and check_num label arg =*)
+    (*match arg_to_const arg with*)
+    (*| Some(x) ->*)
+        (*if (x = const_false_value || x = const_true_value) then*)
+            (*[ IJmp(label); ]*)
+        (*else*)
+            (*[]*)
+    (*| _ ->*)
+        (*[*)
+            (*ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));*)
+            (*IJnz(label)*)
+        (*]*)
 and check_nums err left right = check_num err left @ check_num err right
-and check_bool label scratch arg =
-    match arg_to_const arg with
-    | Some(x) ->
-        if (x = const_false_value || x = const_true_value) then
-            []
-        else
-            [ IJmp(label); ]
-    | _ ->
-        (mov_if_needed scratch arg) @
-        [
-          IAnd(scratch, tag_as_bool);
-          ICmp(scratch, tag_as_bool);
-          IJne(label)
-        ]
-(*and check_bool err scratch arg =*)
-    (*(mov_if_needed scratch arg) @*)
-    (*[*)
-      (*IAnd(scratch, HexConst(0x00000007));*)
-      (*ICmp(scratch, HexConst(0x00000007));*)
-      (*IJne(err)*)
-    (*]*)
+(*and check_bool label scratch arg =*)
+    (*match arg_to_const arg with*)
+    (*| Some(x) ->*)
+        (*if (x = const_false_value || x = const_true_value) then*)
+            (*[]*)
+        (*else*)
+            (*[ IJmp(label); ]*)
+    (*| _ ->*)
+        (*(mov_if_needed scratch arg) @*)
+        (*[*)
+          (*IAnd(scratch, tag_as_bool);*)
+          (*ICmp(scratch, tag_as_bool);*)
+          (*IJne(label)*)
+        (*]*)
+and check_bool err scratch arg =
+    (mov_if_needed scratch arg) @
+    [
+      IAnd(scratch, HexConst(0x00000007));
+      ICmp(scratch, HexConst(0x00000007));
+      IJne(err)
+    ]
 and check_bools err scratch left right = check_bool err scratch left @ check_bool err scratch right
 and check_overflow err = [ IJo(err); ]
 and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (is_tail : bool) : instruction list =
@@ -368,12 +368,16 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
        let left_reg = compile_imm left env in
        let right_reg = compile_imm right env in
        let arith_op op =
-         (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+         (*@ check_nums label_err_ARITH_NOT_NUM (Reg EAX) (Reg EDX)*)
+         (*@ (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)*)
+           (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
          @ check_nums label_err_ARITH_NOT_NUM (Reg EAX) (Reg EDX)
          @ [ op (Reg(EAX), Reg(EDX)) ]
          @ check_overflow label_err_OVERFLOW in
        let comp_op op =
-         (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
+           (*(check_nums label_err_COMP_NOT_NUM left_reg right_reg)*)
+         (*@ (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)*)
+           (mov_if_needed (Reg EAX) left_reg) @ (mov_if_needed (Reg EDX) right_reg)
          @ (check_nums label_err_COMP_NOT_NUM (Reg EAX) (Reg EDX))
          @ [
              (* More intuitive implementation *)
@@ -449,19 +453,35 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
         let prelude = [
             IMov(Reg(EAX), Reg(ESI));
             IOr(Reg(EAX), HexConst(0x00000001));
-            IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Const(size));
-            IAdd(Reg(ESI), Const(word_size)); ] in
-        let load = List.flatten( List.rev_map
-            (fun a -> [
-                IMov(Sized(DWORD_PTR, Reg(EDX)), compile_imm a env);
-                IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Reg(EDX));
-                IAdd(Reg(ESI), Const(word_size)); ] )
-            expr_ls) in
+            IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Const(size)); ] in
+        let (_, load) = List.fold_right
+            (fun arg (offset, ls) -> (offset+word_size, ls @ [
+                IMov(Sized(DWORD_PTR, Reg(EDX)), compile_imm arg env);
+                IMov(Sized(DWORD_PTR, RegOffset(offset, ESI)), Reg(EDX));
+            ]) )
+            expr_ls
+            (word_size, []) in
         let padding =
-            if size mod 2 = 0 then
-                [ IInstrComment(IAdd(Reg(ESI), Const(word_size)), "Padding: size is even"); ]
-            else [] in
+            if size mod 2 = 0 then [ IAdd(Reg(ESI), Const(word_size*(size+2))); ]
+            else [ IAdd(Reg(ESI), Const(word_size*(size+2))); ] in
         prelude @ load @ padding
+        (*let size = List.length expr_ls in*)
+        (*let prelude = [*)
+            (*IMov(Reg(EAX), Reg(ESI));*)
+            (*IOr(Reg(EAX), HexConst(0x00000001));*)
+            (*IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Const(size));*)
+            (*IAdd(Reg(ESI), Const(word_size)); ] in*)
+        (*let load = List.flatten( List.rev_map*)
+            (*(fun a -> [*)
+                (*IMov(Sized(DWORD_PTR, Reg(EDX)), compile_imm a env);*)
+                (*IMov(Sized(DWORD_PTR, RegOffset(0, ESI)), Reg(EDX));*)
+                (*IAdd(Reg(ESI), Const(word_size)); ] )*)
+            (*expr_ls) in*)
+        (*let padding =*)
+            (*if size mod 2 = 0 then*)
+                (*[ IInstrComment(IAdd(Reg(ESI), Const(word_size)), "Padding: size is even"); ]*)
+            (*else [] in*)
+        (*prelude @ load @ padding*)
        (* FILL: You need to implement this case *)
        (*failwith "not yet implemented: CTuple compilation"*)
     | CGetItem(tup, idx, _) -> [
@@ -478,10 +498,6 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
         IJg(label_err_LOGIC_NOT_BOOL);
         IMov(Reg(EAX), RegOffsetReg(EAX, ECX, word_size, 0));
         ]
-
-
-
-
        (* FILL: You need to implement this case *)
        (*failwith "not yet implemented: CGetItem compilation"*)
 and compile_imm e env =
@@ -547,7 +563,6 @@ global our_code_starts_here" in
      let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" [] body in
      let heap_start = [
          ILineComment("heap start");
-         (*IInstrComment(IMov(Reg(ESI), RegOffset(4, ESP)), "Load ESI with our argument, the heap pointer");*)
          IInstrComment(IMov(Reg(ESI), RegOffset(8, EBP)), "Load ESI with our argument, the heap pointer");
          IInstrComment(IAdd(Reg(ESI), Const(7)), "Align it to the nearest multiple of 8");
          IInstrComment(IAnd(Reg(ESI), HexConst(0xFFFFFFF8)), "by adding no more than 7 to it")
