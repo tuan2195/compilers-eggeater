@@ -1,9 +1,6 @@
 def length(l):
     length_rec(l, 0)
 
-def cons(what, l):
-    (what, l)
-
 def length_rec(l, acc):
     if l == false: acc
     else: length_rec(l[1], acc + 1)
@@ -29,7 +26,6 @@ def append(l1, l2):
 let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
     let lenOf = print(length(ls)),
         sumOf = print(sum(ls)),
-        revO = print(reverse(ls)),
-        apnOf = print(append(ls, ls)),
-        consOf = print(cons(-1, ls)) in
+        revOf = print(reverse(ls)),
+        apnOf = print(append(ls, reverse(ls))) in
     true
