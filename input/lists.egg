@@ -23,9 +23,19 @@ def append(l1, l2):
     if l1 == false: l2
     else: (l1[0], append(l1[1], l2))
 
+def nth_ls(l, n):
+    if n == false: false
+    else:
+        if n == 0: l
+        else: nth_ls(l[1], n - 1)
+
+def nth_el(l,n): nth_ls(l,n)[0]
+
 let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
     let lenOf = print(length(ls)),
         sumOf = print(sum(ls)),
         revOf = print(reverse(ls)),
+        nlsOf = print(nth_ls(ls, 5)),
+        nelOf = print(nth_el(ls, 5)),
         apnOf = print(append(ls, reverse(ls))) in
     true
