@@ -65,10 +65,8 @@ let well_formed (p : (Lexing.position * Lexing.position) program) : exn list =
           [UnboundFun(funname, pos)]) @ List.concat (List.map (fun e -> wf_E e env funenv) args)
     | EGetItem(tup, idx, _) ->
         wf_E tup env funenv  @ wf_E idx env funenv
-       (* TODO: check if tuple is actually a tuple? you need to implement this *)
     | ETuple(expr_ls, _) ->
         List.flatten (List.map (fun e -> wf_E e env funenv) expr_ls)
-       (* FILL: you need to implement this *)
   and wf_D d (env : sourcespan envt) (funenv : (sourcespan * int) envt) =
     match d with
     | DFun(_, args, body, _) ->
@@ -234,7 +232,7 @@ let err_INDEX_NOT_NUM  = (Const(7), "__err_INDEX_NOT_NUM__")
 let err_INDEX_LARGE    = (Const(8), "__err_INDEX_LARGE__")
 let err_INDEX_SMALL    = (Const(9), "__err_INDEX_SMALL__")
 
-let label_func_begin name    = sprintf "__%s_func_begin__" name
+let label_func_begin name = sprintf "__%s_func_begin__" name
 
 let rec arg_to_const arg =
     match arg with
@@ -369,14 +367,12 @@ and compile_cexpr e si env num_args is_tail =
     | CPrim2(op, e1, e2, t) ->
         let arg1 = compile_imm e1 env in
         let arg2 = compile_imm e2 env in
-        let comp_op op = [ ICmp(Reg(EAX), arg2); ] @ block_true_false (sprintf "__compare_%d__" t) op in
+        let comp op = [ ICmp(Reg(EAX), arg2); ] @ block_true_false (sprintf "__compare_%d__" t) op in
         let prelude = match op with
-            | Plus | Minus | Times ->
-                check_arith arg2 @ check_arith arg1
-            | Greater | GreaterEq | Less | LessEq | Eq ->
-                check_compare arg2 @ check_compare arg1
-            | And | Or ->
-                check_logic arg2 @ check_logic arg1
+            | Plus | Minus | Times -> check_arith arg2 @ check_arith arg1
+            | Greater | GreaterEq | Less | LessEq -> check_compare arg2 @ check_compare arg1
+            | And | Or -> check_logic arg2 @ check_logic arg1
+            | _ -> [ IMov(Reg(EAX), arg1); ]
         in prelude @ (match op with
         | Plus -> [
             IAdd(Reg(EAX), arg2);
@@ -396,15 +392,15 @@ and compile_cexpr e si env num_args is_tail =
         | Or ->
             [ IOr(Reg(EAX), arg2); ]
         | Greater ->
-            comp_op (fun x -> IJg(x))
+            comp (fun x -> IJg(x))
         | GreaterEq ->
-            comp_op (fun x -> IJge(x))
+            comp (fun x -> IJge(x))
         | Less ->
-            comp_op (fun x -> IJl(x))
+            comp (fun x -> IJl(x))
         | LessEq ->
-            comp_op (fun x -> IJle(x))
+            comp (fun x -> IJle(x))
         | Eq ->
-            comp_op (fun x -> IJe(x))
+            comp (fun x -> IJe(x))
         )
     | CApp(name, args, _) ->
         if is_tail && (num_args = List.length args) then
@@ -488,9 +484,8 @@ extern print
 extern print_stack
 global our_code_starts_here" in
   let suffix =
-      let call err = to_asm [ ILabel(snd err); IPush(fst err); ICall("error"); ] in
-      (*let call_error err = to_asm (call (snd err) [fst err]) in*)
-      String.concat "" [
+      let call err = [ ILabel(snd err); IPush(fst err); ICall("error"); ] in
+      to_asm (List.flatten [
           call err_COMP_NOT_NUM;
           call err_ARITH_NOT_NUM;
           call err_LOGIC_NOT_BOOL;
@@ -500,12 +495,11 @@ global our_code_starts_here" in
           call err_INDEX_NOT_NUM;
           call err_INDEX_LARGE;
           call err_INDEX_SMALL;
-      ]
+      ])
   in
   match anfed with
   | AProgram(decls, body, _) ->
      let comp_decls = List.map compile_decl decls in
-
      let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" [] body in
      let heap_start = [
          ILineComment("heap start");
@@ -514,7 +508,6 @@ global our_code_starts_here" in
          IInstrComment(IAnd(Reg(ESI), HexConst(0xFFFFFFF8)), "by adding no more than 7 to it")
        ] in
      let main = (prologue @ heap_start @ comp_main @ epilogue) in
-
      let as_assembly_string = ExtString.String.join "\n" (List.map to_asm comp_decls) in
      sprintf "%s%s\n%s%s\n" prelude as_assembly_string (to_asm main) suffix
 

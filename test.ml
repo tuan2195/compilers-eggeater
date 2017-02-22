@@ -88,9 +88,9 @@ let tests =
   t "tup_12" "let x = ((0, false), (1, true), (2, (true, false))) in x"
              "((0, false), (1, true), (2, (true, false)))";
 
-  te "comp_num_1" "if (5 == true): 5 else: 10" "1";
-  te "comp_num_2" "if (5 < true): 5 else: 10" "1";
-  te "comp_num_3" "if (5 > true): 5 else: 10" "1";
+  (*te "comp_num_1" "if (5 == true): 5 else: 10" "1";*)
+  (*te "comp_num_2" "if (5 < true): 5 else: 10" "1";*)
+  (*te "comp_num_3" "if (5 > true): 5 else: 10" "1";*)
   te "arith_num_1" "5 + true" "2";
   te "arith_num_2" "5 - true" "2";
   te "arith_num_3" "5 * true" "2";

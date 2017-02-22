@@ -1,14 +1,26 @@
-def link(first, rest):
-  (first, rest)
-
 def length(l):
-  if l == false: 0
-  else:
-    1 + length(l[1])
+    length_rec(l, 0)
+
+def length_rec(l, acc):
+    if l == false: acc
+    else: length_rec(l[1], acc + 1)
 
 def sum(l):
-  if l == false: 0
-  else: l[0] + sum(l[1])
+    sum_rec(l, 0)
 
-let myList = link(10, link(2, link(3, false))) in
-  sum(myList)
+def sum_rec(l, acc):
+    if l == false: acc
+    else: sum_rec(l[1], acc + l[0])
+
+def reverse(l):
+    reverse_rec(l, false)
+
+def reverse_rec(l, prev):
+    if l[1] == false: (l[0], prev)
+    else: reverse_rec(l[1], (l[0], prev))
+
+let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
+    let l = print(length(ls)),
+        s = print(sum(ls)),
+        p = print(reverse(ls)) in
+    true
