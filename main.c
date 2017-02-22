@@ -78,11 +78,11 @@ void error(int i) {
   case ERR_INDEX_LARGE:
     fprintf(stderr, "Error: index out of bounds - too large");
     break;
-  case err_INDEX_SMALL:
+  case ERR_INDEX_SMALL:
     fprintf(stderr, "Error: index out of bounds - too small");
     break;
   default:
-    fprintf(stderr, "Error: Unknown error code: %d\n", i);
+    fprintf(stderr, "Error: unknown error code: %d\n", i);
   }
   exit(i);
 }

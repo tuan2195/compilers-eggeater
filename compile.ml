@@ -229,15 +229,15 @@ let bool_mask          = Sized(DWORD_PTR, HexConst(0x80000000))
 let tag_as_bool        = Sized(DWORD_PTR, HexConst(0x00000007))
 let tag_last_bit       = Sized(DWORD_PTR, HexConst(0x00000001))
 
-let err_COMP_NOT_NUM   = HexConst(1)
-let err_ARITH_NOT_NUM  = HexConst(2)
-let err_LOGIC_NOT_BOOL = HexConst(3)
-let err_IF_NOT_BOOL    = HexConst(4)
-let err_OVERFLOW       = HexConst(5)
-let err_NOT_TUPLE      = HexConst(6)
-let err_INDEX_NOT_NUM  = HexConst(7)
-let err_INDEX_LARGE    = HexConst(8)
-let err_INDEX_SMALL    = HexConst(9)
+let err_COMP_NOT_NUM   = Const(1)
+let err_ARITH_NOT_NUM  = Const(2)
+let err_LOGIC_NOT_BOOL = Const(3)
+let err_IF_NOT_BOOL    = Const(4)
+let err_OVERFLOW       = Const(5)
+let err_NOT_TUPLE      = Const(6)
+let err_INDEX_NOT_NUM  = Const(7)
+let err_INDEX_LARGE    = Const(8)
+let err_INDEX_SMALL    = Const(9)
 
 let label_err_COMP_NOT_NUM   = "__err_COMP_NOT_NUM__"
 let label_err_ARITH_NOT_NUM  = "__err_ARITH_NOT_NUM__"
@@ -248,7 +248,6 @@ let label_err_NOT_TUPLE      = "__err_NOT_TUPLE__"
 let label_err_INDEX_NOT_NUM  = "__err_INDEX_NOT_NUM__"
 let label_err_INDEX_LARGE    = "__err_INDEX_LARGE__"
 let label_err_INDEX_SMALL    = "__err_INDEX_SMALL__"
-
 let label_func_begin name    = sprintf "__%s_func_begin__" name
 
 let rec arg_to_const arg =
@@ -290,7 +289,6 @@ let check_num arg label =
 let check_logic arg = check_bool arg label_err_LOGIC_NOT_BOOL
 let check_if arg = check_bool arg label_err_IF_NOT_BOOL
 let check_arith arg = check_num arg label_err_ARITH_NOT_NUM
-let check_index arg = check_num arg label_err_INDEX_NOT_NUM
 let check_compare arg = check_num arg label_err_COMP_NOT_NUM
 
 let block_true_false label op = [
@@ -449,16 +447,17 @@ and compile_cexpr e si env num_args is_tail =
     | CGetItem(tup, idx, _) -> [
         IMov(Sized(DWORD_PTR, Reg(ECX)), compile_imm tup env);
         ITest(Sized(DWORD_PTR, Reg(ECX)), tag_last_bit);
-        IJz(label_err_NOT_TUPLE);
+        (* TODO: error if not tuple *)
+        IJz(label_err_ARITH_NOT_NUM);
         ISub(Reg(ECX), Const(1)); ]
-      @ check_index (compile_imm idx env) @ [
+        (* TODO: error if not number *)
+      @ check_arith (compile_imm idx env) @ [
         ISar(Reg(EAX), Const(1));
-        ICmp(Reg(EAX), Const(0));
-        IJl(label_err_INDEX_SMALL);
         IAdd(Reg(EAX), Const(1));
         IMov(Sized(DWORD_PTR, Reg(EDX)), RegOffset(0, ECX));
         ICmp(Reg(EAX), Reg(EDX));
-        IJg(label_err_INDEX_LARGE);
+        (* TODO: error if index out of bounds *)
+        IJg(label_err_LOGIC_NOT_BOOL);
         IMov(Reg(EAX), RegOffsetReg(ECX, EAX, word_size, 0));
         ]
 and compile_imm e env =
@@ -500,63 +499,19 @@ extern error
 extern print
 extern print_stack
 global our_code_starts_here" in
-  let suffix = sprintf "
-%s:%s
-%s:%s
-%s:%s
-%s:%s
-%s:%s"
-   label_err_COMP_NOT_NUM   (to_asm (call "error" [err_COMP_NOT_NUM]))
-   label_err_ARITH_NOT_NUM  (to_asm (call "error" [err_ARITH_NOT_NUM]))
-   label_err_LOGIC_NOT_BOOL (to_asm (call "error" [err_LOGIC_NOT_BOOL]))
-   label_err_IF_NOT_BOOL    (to_asm (call "error" [err_IF_NOT_BOOL]))
-   label_err_OVERFLOW       (to_asm (call "error" [err_OVERFLOW]))
-  in
-  match anfed with
-  | AProgram(decls, body, _) ->
-     let comp_decls = List.map compile_decl decls in
-
-     let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" [] body in
-     let heap_start = [
-         ILineComment("heap start");
-         IInstrComment(IMov(Reg(ESI), RegOffset(8, EBP)), "Load ESI with our argument, the heap pointer");
-         IInstrComment(IAdd(Reg(ESI), Const(7)), "Align it to the nearest multiple of 8");
-         IInstrComment(IAnd(Reg(ESI), HexConst(0xFFFFFFF8)), "by adding no more than 7 to it")
-       ] in
-     let main = (prologue @ heap_start @ comp_main @ epilogue) in
-
-     let as_assembly_string = ExtString.String.join "\n" (List.map to_asm comp_decls) in
-     sprintf "%s%s\n%s%s\n" prelude as_assembly_string (to_asm main) suffix
-
-
-
-let compile_prog anfed =
-  let prelude =
-    "section .text
-extern error
-extern print
-extern print_stack
-global our_code_starts_here" in
-  let suffix = sprintf "
-%s:%s
-%s:%s
-%s:%s
-%s:%s
-%s:%s
-%s:%s
-%s:%s
-%s:%s
-%s:%s"
-   label_err_COMP_NOT_NUM   (to_asm (call "error" [err_COMP_NOT_NUM]))
-   label_err_ARITH_NOT_NUM  (to_asm (call "error" [err_ARITH_NOT_NUM]))
-   label_err_LOGIC_NOT_BOOL (to_asm (call "error" [err_LOGIC_NOT_BOOL]))
-   label_err_IF_NOT_BOOL    (to_asm (call "error" [err_IF_NOT_BOOL]))
-   label_err_OVERFLOW       (to_asm (call "error" [err_OVERFLOW]))
-   label_err_NOT_TUPLE      (to_asm (call "error" [err_NOT_TUPLE]))
-   label_err_INDEX_NOT_NUM  (to_asm (call "error" [err_INDEX_NOT_NUM]))
-   label_err_INDEX_LARGE    (to_asm (call "error" [err_INDEX_LARGE]))
-   label_err_INDEX_SMALL    (to_asm (call "error" [err_INDEX_SMALL]))
-
+  let suffix =
+      let call label arg = to_asm [ ILabel(label); IPush(arg); ICall(label); ] in
+      String.concat "" [
+          call label_err_COMP_NOT_NUM   err_COMP_NOT_NUM;
+          call label_err_ARITH_NOT_NUM  err_ARITH_NOT_NUM;
+          call label_err_LOGIC_NOT_BOOL err_LOGIC_NOT_BOOL;
+          call label_err_IF_NOT_BOOL    err_IF_NOT_BOOL;
+          call label_err_OVERFLOW       err_OVERFLOW;
+          call label_err_NOT_TUPLE      err_NOT_TUPLE;
+          call label_err_INDEX_NOT_NUM  err_INDEX_NOT_NUM;
+          call label_err_INDEX_LARGE    err_INDEX_LARGE;
+          call label_err_INDEX_SMALL    err_INDEX_SMALL;
+      ]
   in
   match anfed with
   | AProgram(decls, body, _) ->
