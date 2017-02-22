@@ -86,7 +86,7 @@ let tests =
   t "tup_10" "let x = (1, 2, 3, 4, 5, 6) in x[x[x[x[x[x[0]]]]]]" "6";
   t "tup_11" "let x = (0, false, 1, true) in x" "(0, false, 1, true)";
   t "tup_12" "let x = ((0, false), (1, true), (2, (true, false))) in x"
-             "(((0, false), (1, true), (2, (true, false))))";
+             "((0, false), (1, true), (2, (true, false)))";
 
   te "comp_num_1" "if (5 == true): 5 else: 10" "1";
   te "comp_num_2" "if (5 < true): 5 else: 10" "1";

@@ -5,7 +5,6 @@ extern int our_code_starts_here() asm("our_code_starts_here");
 extern void error(int err_code) asm("error");
 extern int print(int val) asm("print");
 
-const int BOOL_TAG   = 0x00000007;
 const int NUM_TAG    = 0x00000001;
 const int BOOL_TRUE  = 0xFFFFFFFF;
 const int BOOL_FALSE = 0x7FFFFFFF;
@@ -17,7 +16,7 @@ const int ERR_IF_NOT_BOOL    = 4;
 const int ERR_OVERFLOW       = 5;
 
 void printHelp(int val) {
-  if((val & NUM_TAG) == 0)
+  if((val & NUM_TAG) == 0x0)
   {
     printf("%d", val >> 1);
   }
@@ -29,7 +28,7 @@ void printHelp(int val) {
   {
     printf("false");
   }
-  else
+  else if((val & 0x7) == 0x1)
   {
     int* arr = (int*)(val-1);
     int size = *arr;
