@@ -74,16 +74,19 @@ let tests =
   t "f_tail_3" "def f(x, a): (if x==1: a else: g(x - 1, a * x))
                 def g(x, a): (if x==1: a+1 else: f(x - 1, a + x)) f(16, 1)" "20643839";
 
-  t "tup_1" "let x = (3) in 6" "6";
-  t "tup_2" "let x = (3, 4, 5, 6) in x[0]" "3";
-  t "tup_3" "let x = (3, 4, 5, 6) in x[1]" "4";
-  t "tup_4" "let x = (3, 4, 5, 6) in x[2]" "5";
-  t "tup_5" "let x = (3, 4, 5, 6) in x[3]" "6";
-  t "tup_6" "let x = (1, 2, 3, 4, 5, 6) in x[0]" "1";
-  t "tup_7" "let x = (1, 2, 3, 4, 5, 6) in x[2]" "3";
-  t "tup_8" "let x = (1, 2, 3, 4, 5, 6) in x[4]" "5";
-  t "tup_9" "let x = (1, 2, 3, 4, 5, 6) in x[2+2]" "5";
-  t "tup_10" "let x = (1, 2, 3, 4, 5, 6) in x[0+1]+x[1+2]+x[2+3]" "12";
+  t "tup_1" "let x = (3, 4, 5, 6) in x[0]" "3";
+  t "tup_2" "let x = (3, 4, 5, 6) in x[1]" "4";
+  t "tup_3" "let x = (3, 4, 5, 6) in x[2]" "5";
+  t "tup_4" "let x = (3, 4, 5, 6) in x[3]" "6";
+  t "tup_5" "let x = (1, 2, 3, 4, 5, 6) in x[0]" "1";
+  t "tup_6" "let x = (1, 2, 3, 4, 5, 6) in x[2]" "3";
+  t "tup_7" "let x = (1, 2, 3, 4, 5, 6) in x[4]" "5";
+  t "tup_8" "let x = (1, 2, 3, 4, 5, 6) in x[2+2]" "5";
+  t "tup_9" "let x = (1, 2, 3, 4, 5, 6) in x[0+1]+x[1+2]+x[2+3]" "12";
+  t "tup_10" "let x = (1, 2, 3, 4, 5, 6) in x[x[x[x[x[x[0]]]]]]" "6";
+  t "tup_11" "let x = (0, false, 1, true) in x" "(0, false, 1, true)";
+  t "tup_12" "let x = ((0, false), (1, true), (2, (true, false))) in x"
+             "(((0, false), (1, true), (2, (true, false))))";
 
   te "comp_num_1" "if (5 == true): 5 else: 10" "1";
   te "comp_num_2" "if (5 < true): 5 else: 10" "1";

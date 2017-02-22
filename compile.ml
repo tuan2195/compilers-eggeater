@@ -289,13 +289,6 @@ let block_true_false label op = [
     IMov(Reg(EAX), const_false);
     ILabel(label);
 ]
-(*let block_true_false label_true label_done = [*)
-    (*IMov(Reg(EAX), const_false);*)
-    (*IJmp(label_done);*)
-    (*ILabel(label_true);*)
-    (*IMov(Reg(EAX), const_true);*)
-    (*ILabel(label_done);*)
-(*]*)
 
 let rec compile_fun fun_name args e : (instruction list * instruction list * instruction list) =
   let args_env = List.mapi (fun i a -> (a, RegOffset(word_size * (i + 2), EBP))) args in
@@ -379,8 +372,7 @@ and compile_cexpr e si env num_args is_tail =
     | CPrim2(op, e1, e2, t) ->
         let arg1 = compile_imm e1 env in
         let arg2 = compile_imm e2 env in
-        let label_done = sprintf "__compare_%d_done__" t in
-        let comp_op op = [ ICmp(Reg(EAX), arg2); ] @ block_true_false label_done op in
+        let comp_op op = [ ICmp(Reg(EAX), arg2); ] @ block_true_false (sprintf "__compare_%d__" t) op in
         let prelude = match op with
             | Plus | Minus | Times ->
                 check_arith arg2 @ check_arith arg1
@@ -472,7 +464,7 @@ and call label args =
     let len = List.length args in
     if len = 0 then []
     else [ IInstrComment(IAdd(Reg(ESP), Const(4 * len)), sprintf "Popping %d arguments" len) ] in
-    [ ILineComment(sprintf "Call to function %s" label) ] @ setup @ [ ICall(label) ] @ teardown
+  [ ILineComment(sprintf "Call to function %s" label) ] @ setup @ [ ICall(label) ] @ teardown
 and optimize ls =
     match ls with
     | [] -> []

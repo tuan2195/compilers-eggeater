@@ -5,7 +5,8 @@ extern int our_code_starts_here() asm("our_code_starts_here");
 extern void error(int err_code) asm("error");
 extern int print(int val) asm("print");
 
-const int BOOL_TAG   = 0x00000001;
+const int BOOL_TAG   = 0x00000007;
+const int NUM_TAG    = 0x00000001;
 const int BOOL_TRUE  = 0xFFFFFFFF;
 const int BOOL_FALSE = 0x7FFFFFFF;
 
@@ -16,17 +17,29 @@ const int ERR_IF_NOT_BOOL    = 4;
 const int ERR_OVERFLOW       = 5;
 
 void printHelp(int val) {
-  if((val & BOOL_TAG) != BOOL_TAG) {
+  if((val & NUM_TAG) == 0)
+  {
     printf("%d", val >> 1);
   }
-  else if(val == BOOL_TRUE) {
+  else if(val == BOOL_TRUE)
+  {
     printf("true");
   }
-  else if(val == BOOL_FALSE) {
+  else if(val == BOOL_FALSE)
+  {
     printf("false");
   }
-  else {
-    printf("Unknown value: %#010x", val);
+  else
+  {
+    int* arr = (int*)(val-1);
+    int size = *arr;
+    printf("(");
+    for (int i = 1; i <= size; ++i)
+    {
+        printHelp(arr[i]);
+        printf(i == size ? "" : ", ");
+    }
+    printf(")");
   }
 }
 
