@@ -1,4 +1,10 @@
 def link(first, rest):
   (first, rest)
 
-# This is an incomplete program, so it doesn't parse yet...
+def length(l):
+  if l == false: 0
+  else:
+    1 + length(l[1])
+
+let myList = link(10, link(2, link(3, false))) in
+  length(myList)
