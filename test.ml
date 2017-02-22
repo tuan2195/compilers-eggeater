@@ -87,6 +87,10 @@ let tests =
   t "tup_11" "let x = (0, false, 1, true) in x" "(0, false, 1, true)";
   t "tup_12" "let x = ((0, false), (1, true), (2, (true, false))) in x"
              "((0, false), (1, true), (2, (true, false)))";
+  t "tup_13" "let x = (0, (1, 2)) in x[1]" "(1, 2)";
+  t "tup_14" "let x = (0, (1, 2)) in x[1][0]" "1";
+  t "tup_15" "let x = (0, (1, (3, 4))) in x[1][1][1]" "4";
+  t "tup_16" "let x = (0, (1, (3, 4))) in x[1][1][1] + x[1][1][0]" "7";
 
   (*te "comp_num_1" "if (5 == true): 5 else: 10" "1";*)
   (*te "comp_num_2" "if (5 < true): 5 else: 10" "1";*)
@@ -101,23 +105,32 @@ let tests =
   te "ovf_1" "999999999 * 999999999" "5";
   te "ovf_2" "def f(x, a): (if x==1: a else: f(x - 1, a * x)) f(99, 1)" "5";
 
-  te "e1" "let x = 5 in x + y" "The identifier y, used at <e1, 1:17-1:18>, is not in scope";
-  te "e2" "def f(x,y): (x+y) g(1,2)" "The function name g, used at <e2, 1:18-1:24>, is not in scope";
-  te "e3" "let x = 5 in let x = 5 in 4" "The identifier x, defined at <e3, 1:17-1:18>, shadows one defined at <e3, 1:4-1:5>";
-  te "e4" "def f(x): (x)
+  te "e_scope_1" "let x = 5 in x + y" "The identifier y, used at <e_scope_1, 1:17-1:18>, is not in scope";
+  te "e_scope_2" "def f(x,y): (x+y) g(1,2)" "The function name g, used at <e_scope_2, 1:18-1:24>, is not in scope";
+
+  te "e_shadow_1" "let x = 5 in let x = 5 in 4" "The identifier x, defined at <e_shadow_1, 1:17-1:18>, shadows one defined at <e_shadow_1, 1:4-1:5>";
+  te "e_dupe_1" "def f(x): (x)
            def f(x): (x)
            f(f(5))"
-          "The function name f, redefined at <e4, 2:11-2:24>, duplicates one at <e4, 1:0-1:13>";
-  te "e5" "let x = 1073741824 in x" "The number literal 1073741824, used at <e5, 1:8-1:18>, is not supported in this language";
-  te "e6" "let x = -1073741825 in x" "The number literal -1073741825, used at <e6, 1:8-1:19>, is not supported in this language";
-  te "e7" "def f(x): (x)
+          "The function name f, redefined at <e_dupe_1, 2:11-2:24>, duplicates one at <e_dupe_1, 1:0-1:13>";
+  te "e_dupe_2" "def f(x, x): (x+1) f(5, 6)" "The identifier x, redefined at <e_dupe_2, 1:9-1:10>, duplicates one at <e_dupe_2, 1:6-1:7>";
+
+  te "e_num_1" "let x = 1073741824 in x" "The number literal 1073741824, used at <e_num_1, 1:8-1:18>, is not supported in this language";
+  te "e_num_2" "let x = -1073741825 in x" "The number literal -1073741825, used at <e_num_2, 1:8-1:19>, is not supported in this language";
+
+  te "e_arity_1" "def f(x): (x)
            f(5, 6)"
-          "The function called at <e7, 2:11-2:18> expected an arity of 1, but received 2 arguments";
-  te "e8" "def f(x, y): (x+y)
+          "The function called at <e_arity_1, 2:11-2:18> expected an arity of 1, but received 2 arguments";
+  te "e_arity_2" "def f(x, y): (x+y)
            f(5)"
-          "The function called at <e8, 2:11-2:15> expected an arity of 2, but received 1 argument";
-  te "e9" "def f(x, x): (x+1) f(5, 6)" "The identifier x, redefined at <e9, 1:9-1:10>, duplicates one at <e9, 1:6-1:7>";
-  te "e10" "def f(): 5 f(x)" "The function called at <e10, 1:11-1:15> expected an arity of 0, but received 1 arguments";
+          "The function called at <e_arity_2, 2:11-2:15> expected an arity of 2, but received 1 argument";
+  te "e_arity_3" "def f(): 5 f(x)" "The function called at <e_arity_3, 1:11-1:15> expected an arity of 0, but received 1 arguments";
+
+  te "e_tup_1" "let x = (1, 2) in x[2]" "Error: index out of bounds - too large";
+  te "e_tup_2" "let x = (1, 2) in x[-1]" "Error: index out of bounds - too small";
+  te "e_tup_3" "let x = (1, 2) in x[false]" "Error: index operator expects a number";
+  te "e_tup_4" "let x = 5 in x[1]" "Error: index operator expects a tuple";
+
  ]
 
 let suite =
