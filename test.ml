@@ -87,6 +87,10 @@ let tests =
   t "tup_11" "let x = (0, false, 1, true) in x" "(0, false, 1, true)";
   t "tup_12" "let x = ((0, false), (1, true), (2, (true, false))) in x"
              "((0, false), (1, true), (2, (true, false)))";
+  t "tup_13" "let x = (0, (1, 2)) in x[1]" "(1, 2)";
+  t "tup_14" "let x = (0, (1, 2)) in x[1][0]" "1";
+  t "tup_15" "let x = (0, (1, (3, 4))) in x[1][1][1]" "4";
+  t "tup_16" "let x = (0, (1, (3, 4))) in x[1][1][1] + x[1][1][0]" "7";
 
   te "comp_num_1" "if (5 == true): 5 else: 10" "1";
   te "comp_num_2" "if (5 < true): 5 else: 10" "1";
