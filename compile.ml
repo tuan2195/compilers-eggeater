@@ -146,12 +146,10 @@ let anf (p : tag program) : unit aprogram =
     | ETuple(expr_ls, _) ->
         let (ans, setup) = help_foldI expr_ls in
         (CTuple(ans, ()), setup)
-        (*failwith "Implement ANF conversion for tuples"*)
     | EGetItem(tup, idx, _) ->
         let (tup_ans, tup_setup) = helpI tup in
         let (idx_ans, idx_setup) = helpI idx in
         (CGetItem(tup_ans, idx_ans, ()), tup_setup @ idx_setup)
-       (*failwith "Implement ANF conversion for tuple-access"*)
     | _ -> let (imm, setup) = helpI e in (CImmExpr imm, setup)
   and helpI (e : tag expr) : (unit immexpr * (string * unit cexpr) list) =
     match e with
@@ -175,17 +173,14 @@ let anf (p : tag program) : unit aprogram =
          let name = sprintf "func_%s_%d" funname tag in
          let (ans, setup) = helpC e in
          (ImmId(name, ()), setup @ [(name, ans)])
-       (*failwith "Implement ANF conversion for function calls"*)
     | ETuple(expr_ls, tag) ->
          let name = sprintf "tuple_%d" tag in
          let (ans, setup) = helpC e in
          (ImmId(name, ()), setup @ [(name, ans)])
-       (*failwith "Implement ANF conversion for tuples"*)
     | EGetItem(tup, idx, tag) ->
          let name = sprintf "getitem_%d" tag in
          let (ans, setup) = helpC e in
          (ImmId(name, ()), setup @ [(name, ans)])
-       (*failwith "Implement ANF conversion for tuples"*)
     | ELet([], body, _) -> helpI body
     | ELet((bind, exp, _)::rest, body, pos) ->
         let (exp_ans, exp_setup) = helpC exp in
@@ -229,25 +224,16 @@ let bool_mask          = Sized(DWORD_PTR, HexConst(0x80000000))
 let tag_as_bool        = Sized(DWORD_PTR, HexConst(0x00000007))
 let tag_last_bit       = Sized(DWORD_PTR, HexConst(0x00000001))
 
-let err_COMP_NOT_NUM   = Const(1)
-let err_ARITH_NOT_NUM  = Const(2)
-let err_LOGIC_NOT_BOOL = Const(3)
-let err_IF_NOT_BOOL    = Const(4)
-let err_OVERFLOW       = Const(5)
-let err_NOT_TUPLE      = Const(6)
-let err_INDEX_NOT_NUM  = Const(7)
-let err_INDEX_LARGE    = Const(8)
-let err_INDEX_SMALL    = Const(9)
+let err_COMP_NOT_NUM   = (Const(1), "__err_COMP_NOT_NUM__")
+let err_ARITH_NOT_NUM  = (Const(2), "__err_ARITH_NOT_NUM__")
+let err_LOGIC_NOT_BOOL = (Const(3), "__err_LOGIC_NOT_BOOL__")
+let err_IF_NOT_BOOL    = (Const(4), "__err_IF_NOT_BOOL__")
+let err_OVERFLOW       = (Const(5), "__err_OVERFLOW__")
+let err_NOT_TUPLE      = (Const(6), "__err_NOT_TUPLE__")
+let err_INDEX_NOT_NUM  = (Const(7), "__err_INDEX_NOT_NUM__")
+let err_INDEX_LARGE    = (Const(8), "__err_INDEX_LARGE__")
+let err_INDEX_SMALL    = (Const(9), "__err_INDEX_SMALL__")
 
-let label_err_COMP_NOT_NUM   = "__err_COMP_NOT_NUM__"
-let label_err_ARITH_NOT_NUM  = "__err_ARITH_NOT_NUM__"
-let label_err_LOGIC_NOT_BOOL = "__err_LOGIC_NOT_BOOL__"
-let label_err_IF_NOT_BOOL    = "__err_IF_NOT_BOOL__"
-let label_err_OVERFLOW       = "__err_OVERFLOW__"
-let label_err_NOT_TUPLE      = "__err_NOT_TUPLE__"
-let label_err_INDEX_NOT_NUM  = "__err_INDEX_NOT_NUM__"
-let label_err_INDEX_LARGE    = "__err_INDEX_LARGE__"
-let label_err_INDEX_SMALL    = "__err_INDEX_SMALL__"
 let label_func_begin name    = sprintf "__%s_func_begin__" name
 
 let rec arg_to_const arg =
@@ -286,10 +272,11 @@ let check_num arg label =
           ITest(Reg(EAX), tag_last_bit);
           IJnz(label); ]
 
-let check_logic arg = check_bool arg label_err_LOGIC_NOT_BOOL
-let check_if arg = check_bool arg label_err_IF_NOT_BOOL
-let check_arith arg = check_num arg label_err_ARITH_NOT_NUM
-let check_compare arg = check_num arg label_err_COMP_NOT_NUM
+let check_logic arg = check_bool arg (snd err_LOGIC_NOT_BOOL)
+let check_if arg = check_bool arg (snd err_IF_NOT_BOOL)
+let check_arith arg = check_num arg (snd err_ARITH_NOT_NUM)
+let check_index arg = check_num arg (snd err_INDEX_NOT_NUM)
+let check_compare arg = check_num arg (snd err_COMP_NOT_NUM)
 
 let block_true_false label op = [
     IMov(Reg(EAX), const_true);
@@ -351,12 +338,12 @@ and compile_cexpr e si env num_args is_tail =
         | Add1 ->
             check_arith arg @ [
             IAdd(Reg(EAX), Const(1 lsl 1));
-            IJo(label_err_OVERFLOW);
+            IJo(snd err_OVERFLOW);
         ]
         | Sub1 ->
             check_arith arg @ [
             ISub(Reg(EAX), Const(1 lsl 1));
-            IJo(label_err_OVERFLOW);
+            IJo(snd err_OVERFLOW);
         ]
         | Print -> [
             IMov(Reg(EAX), arg);
@@ -375,7 +362,9 @@ and compile_cexpr e si env num_args is_tail =
             IXor(Reg(EAX), bool_mask);
         ]
         | PrintStack -> failwith "PrintStack not implemented"
-        | IsTuple -> failwith "IsTuple not implemented"
+        | IsTuple ->
+            [ IMov(Reg(EAX), arg); IAnd(Reg(EAX), tag_as_bool); ICmp(Reg(EAX), HexConst(0x1)); ] @
+            block_true_false label_done (fun x -> IJne(x))
         )
     | CPrim2(op, e1, e2, t) ->
         let arg1 = compile_imm e1 env in
@@ -391,15 +380,15 @@ and compile_cexpr e si env num_args is_tail =
         in prelude @ (match op with
         | Plus -> [
             IAdd(Reg(EAX), arg2);
-            IJo(label_err_OVERFLOW);
+            IJo(snd err_OVERFLOW);
         ]
         | Minus -> [
             ISub(Reg(EAX), arg2);
-            IJo(label_err_OVERFLOW);
+            IJo(snd err_OVERFLOW);
         ]
         | Times -> [
             IMul(Reg(EAX), arg2);
-            IJo(label_err_OVERFLOW);
+            IJo(snd err_OVERFLOW);
             ISar(Reg(EAX), Const(1));
         ]
         | And ->
@@ -447,17 +436,16 @@ and compile_cexpr e si env num_args is_tail =
     | CGetItem(tup, idx, _) -> [
         IMov(Sized(DWORD_PTR, Reg(ECX)), compile_imm tup env);
         ITest(Sized(DWORD_PTR, Reg(ECX)), tag_last_bit);
-        (* TODO: error if not tuple *)
-        IJz(label_err_ARITH_NOT_NUM);
+        IJz(snd err_NOT_TUPLE);
         ISub(Reg(ECX), Const(1)); ]
-        (* TODO: error if not number *)
-      @ check_arith (compile_imm idx env) @ [
+      @ check_index (compile_imm idx env) @ [
         ISar(Reg(EAX), Const(1));
+        ICmp(Reg(EAX), Const(0));
+        IJl(snd err_INDEX_SMALL);
         IAdd(Reg(EAX), Const(1));
         IMov(Sized(DWORD_PTR, Reg(EDX)), RegOffset(0, ECX));
         ICmp(Reg(EAX), Reg(EDX));
-        (* TODO: error if index out of bounds *)
-        IJg(label_err_LOGIC_NOT_BOOL);
+        IJg(snd err_INDEX_LARGE);
         IMov(Reg(EAX), RegOffsetReg(ECX, EAX, word_size, 0));
         ]
 and compile_imm e env =
@@ -500,17 +488,18 @@ extern print
 extern print_stack
 global our_code_starts_here" in
   let suffix =
-      let call label arg = to_asm [ ILabel(label); IPush(arg); ICall(label); ] in
+      let call err = to_asm [ ILabel(snd err); IPush(fst err); ICall("error"); ] in
+      (*let call_error err = to_asm (call (snd err) [fst err]) in*)
       String.concat "" [
-          call label_err_COMP_NOT_NUM   err_COMP_NOT_NUM;
-          call label_err_ARITH_NOT_NUM  err_ARITH_NOT_NUM;
-          call label_err_LOGIC_NOT_BOOL err_LOGIC_NOT_BOOL;
-          call label_err_IF_NOT_BOOL    err_IF_NOT_BOOL;
-          call label_err_OVERFLOW       err_OVERFLOW;
-          call label_err_NOT_TUPLE      err_NOT_TUPLE;
-          call label_err_INDEX_NOT_NUM  err_INDEX_NOT_NUM;
-          call label_err_INDEX_LARGE    err_INDEX_LARGE;
-          call label_err_INDEX_SMALL    err_INDEX_SMALL;
+          call err_COMP_NOT_NUM;
+          call err_ARITH_NOT_NUM;
+          call err_LOGIC_NOT_BOOL;
+          call err_IF_NOT_BOOL;
+          call err_OVERFLOW;
+          call err_NOT_TUPLE;
+          call err_INDEX_NOT_NUM;
+          call err_INDEX_LARGE;
+          call err_INDEX_SMALL;
       ]
   in
   match anfed with
@@ -529,8 +518,6 @@ global our_code_starts_here" in
      let as_assembly_string = ExtString.String.join "\n" (List.map to_asm comp_decls) in
      sprintf "%s%s\n%s%s\n" prelude as_assembly_string (to_asm main) suffix
 
-
-
 let compile_to_string prog : (exn list, string) either =
   let errors = well_formed prog in
   match errors with
@@ -542,4 +529,3 @@ let compile_to_string prog : (exn list, string) either =
      (* printf "ANFed/tagged:\n%s\n" (format_expr anfed string_of_int); *)
      Right(compile_prog anfed)
   | _ -> Left(errors)
-
