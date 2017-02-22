@@ -234,12 +234,21 @@ let err_ARITH_NOT_NUM  = HexConst(2)
 let err_LOGIC_NOT_BOOL = HexConst(3)
 let err_IF_NOT_BOOL    = HexConst(4)
 let err_OVERFLOW       = HexConst(5)
+let err_NOT_TUPLE      = HexConst(6)
+let err_INDEX_NOT_NUM  = HexConst(7)
+let err_INDEX_LARGE    = HexConst(8)
+let err_INDEX_SMALL    = HexConst(9)
 
 let label_err_COMP_NOT_NUM   = "__err_COMP_NOT_NUM__"
 let label_err_ARITH_NOT_NUM  = "__err_ARITH_NOT_NUM__"
 let label_err_LOGIC_NOT_BOOL = "__err_LOGIC_NOT_BOOL__"
 let label_err_IF_NOT_BOOL    = "__err_IF_NOT_BOOL__"
 let label_err_OVERFLOW       = "__err_OVERFLOW__"
+let label_err_NOT_TUPLE      = "__err_NOT_TUPLE__"
+let label_err_INDEX_NOT_NUM  = "__err_INDEX_NOT_NUM__"
+let label_err_INDEX_LARGE    = "__err_INDEX_LARGE__"
+let label_err_INDEX_SMALL    = "__err_INDEX_SMALL__"
+
 let label_func_begin name    = sprintf "__%s_func_begin__" name
 
 let rec arg_to_const arg =
@@ -281,6 +290,7 @@ let check_num arg label =
 let check_logic arg = check_bool arg label_err_LOGIC_NOT_BOOL
 let check_if arg = check_bool arg label_err_IF_NOT_BOOL
 let check_arith arg = check_num arg label_err_ARITH_NOT_NUM
+let check_index arg = check_num arg label_err_INDEX_NOT_NUM
 let check_compare arg = check_num arg label_err_COMP_NOT_NUM
 
 let block_true_false label op = [
@@ -439,17 +449,16 @@ and compile_cexpr e si env num_args is_tail =
     | CGetItem(tup, idx, _) -> [
         IMov(Sized(DWORD_PTR, Reg(ECX)), compile_imm tup env);
         ITest(Sized(DWORD_PTR, Reg(ECX)), tag_last_bit);
-        (* TODO: error if not tuple *)
-        IJz(label_err_ARITH_NOT_NUM);
+        IJz(label_err_NOT_TUPLE);
         ISub(Reg(ECX), Const(1)); ]
-        (* TODO: error if not number *)
-      @ check_arith (compile_imm idx env) @ [
+      @ check_index (compile_imm idx env) @ [
         ISar(Reg(EAX), Const(1));
+        ICmp(Reg(EAX), Const(0));
+        IJl(label_err_INDEX_SMALL);
         IAdd(Reg(EAX), Const(1));
         IMov(Sized(DWORD_PTR, Reg(EDX)), RegOffset(0, ECX));
         ICmp(Reg(EAX), Reg(EDX));
-        (* TODO: error if index out of bounds *)
-        IJg(label_err_LOGIC_NOT_BOOL);
+        IJg(label_err_INDEX_LARGE);
         IMov(Reg(EAX), RegOffsetReg(ECX, EAX, word_size, 0));
         ]
 and compile_imm e env =
@@ -533,12 +542,21 @@ global our_code_starts_here" in
 %s:%s
 %s:%s
 %s:%s
+%s:%s
+%s:%s
+%s:%s
+%s:%s
 %s:%s"
    label_err_COMP_NOT_NUM   (to_asm (call "error" [err_COMP_NOT_NUM]))
    label_err_ARITH_NOT_NUM  (to_asm (call "error" [err_ARITH_NOT_NUM]))
    label_err_LOGIC_NOT_BOOL (to_asm (call "error" [err_LOGIC_NOT_BOOL]))
    label_err_IF_NOT_BOOL    (to_asm (call "error" [err_IF_NOT_BOOL]))
    label_err_OVERFLOW       (to_asm (call "error" [err_OVERFLOW]))
+   label_err_NOT_TUPLE      (to_asm (call "error" [err_NOT_TUPLE]))
+   label_err_INDEX_NOT_NUM  (to_asm (call "error" [err_INDEX_NOT_NUM]))
+   label_err_INDEX_LARGE    (to_asm (call "error" [err_INDEX_LARGE]))
+   label_err_INDEX_SMALL    (to_asm (call "error" [err_INDEX_SMALL]))
+
   in
   match anfed with
   | AProgram(decls, body, _) ->

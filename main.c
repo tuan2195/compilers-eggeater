@@ -14,6 +14,10 @@ const int ERR_ARITH_NOT_NUM  = 2;
 const int ERR_LOGIC_NOT_BOOL = 3;
 const int ERR_IF_NOT_BOOL    = 4;
 const int ERR_OVERFLOW       = 5;
+const int ERR_NOT_TUPLE      = 6;
+const int ERR_INDEX_NOT_NUM  = 7;
+const int ERR_INDEX_LARGE    = 8;
+const int ERR_INDEX_SMALL    = 9;
 
 void printHelp(int val) {
   if((val & NUM_TAG) == 0x0)
@@ -57,13 +61,25 @@ void error(int i) {
     fprintf(stderr, "Error: arithmetic expected a number");
     break;
   case ERR_LOGIC_NOT_BOOL:
-    fprintf(stderr, "Error logic expected a boolean");
+    fprintf(stderr, "Error: logic expected a boolean");
     break;
   case ERR_IF_NOT_BOOL:
     fprintf(stderr, "Error: if expected a boolean");
     break;
   case ERR_OVERFLOW:
-    fprintf(stderr, "Error: Integer overflow");
+    fprintf(stderr, "Error: integer overflow");
+    break;
+  case ERR_NOT_TUPLE:
+    fprintf(stderr, "Error: index operator expects a tuple");
+    break;
+  case ERR_INDEX_NOT_NUM:
+    fprintf(stderr, "Error: index operator expects a number");
+    break;
+  case ERR_INDEX_LARGE:
+    fprintf(stderr, "Error: index out of bounds - too large");
+    break;
+  case err_INDEX_SMALL:
+    fprintf(stderr, "Error: index out of bounds - too small");
     break;
   default:
     fprintf(stderr, "Error: Unknown error code: %d\n", i);
