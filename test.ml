@@ -92,6 +92,19 @@ let tests =
   t "tup_15" "let x = (0, (1, (3, 4))) in x[1][1][1]" "4";
   t "tup_16" "let x = (0, (1, (3, 4))) in x[1][1][1] + x[1][1][0]" "7";
 
+  t "ll_1" "def length(l): length_rec(l, 0)
+            def length_rec(l, acc): if l == false: acc else: length_rec(l[1], acc + 1)
+            length((0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))))"
+            "10";
+  t "ll_2" "def sum(l): sum_rec(l, 0)
+            def sum_rec(l, acc): if l == false: acc else: sum_rec(l[1], acc + l[0])
+            sum((0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))))"
+            "45";
+  t "ll_3" "def reverse(l): reverse_rec(l, false)
+            def reverse_rec(l, prev): if l[1] == false: (l[0], prev) else: reverse_rec(l[1], (l[0], prev))
+            reverse((0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))))"
+            "(9, (8, (7, (6, (5, (4, (3, (2, (1, (0, false))))))))))";
+
   (*te "comp_num_1" "if (5 == true): 5 else: 10" "1";*)
   (*te "comp_num_2" "if (5 < true): 5 else: 10" "1";*)
   (*te "comp_num_3" "if (5 > true): 5 else: 10" "1";*)
@@ -104,10 +117,10 @@ let tests =
   te "if_num" "if 5 : 5 else: 10" "4";
   te "ovf_1" "999999999 * 999999999" "5";
   te "ovf_2" "def f(x, a): (if x==1: a else: f(x - 1, a * x)) f(99, 1)" "5";
-  te "e_tup_1" "let x = (1, 2) in x[2]" "6";
-  te "e_tup_2" "let x = (1, 2) in x[-1]" "7";
-  te "e_tup_3" "let x = (1, 2) in x[false]" "8";
-  te "e_tup_4" "let x = 5 in x[1]" "9";
+  te "e_tup_1" "let x = 5 in x[1]" "6";
+  te "e_tup_2" "let x = (1, 2) in x[false]" "7";
+  te "e_tup_3" "let x = (1, 2) in x[2]" "8";
+  te "e_tup_4" "let x = (1, 2) in x[-1]" "9";
 
   te "e_scope_1" "let x = 5 in x + y" "The identifier y, used at <e_scope_1, 1:17-1:18>, is not in scope";
   te "e_scope_2" "def f(x,y): (x+y) g(1,2)" "The function name g, used at <e_scope_2, 1:18-1:24>, is not in scope";
