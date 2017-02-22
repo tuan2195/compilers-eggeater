@@ -104,6 +104,10 @@ let tests =
   te "if_num" "if 5 : 5 else: 10" "4";
   te "ovf_1" "999999999 * 999999999" "5";
   te "ovf_2" "def f(x, a): (if x==1: a else: f(x - 1, a * x)) f(99, 1)" "5";
+  te "e_tup_1" "let x = (1, 2) in x[2]" "6";
+  te "e_tup_2" "let x = (1, 2) in x[-1]" "7";
+  te "e_tup_3" "let x = (1, 2) in x[false]" "8";
+  te "e_tup_4" "let x = 5 in x[1]" "9";
 
   te "e_scope_1" "let x = 5 in x + y" "The identifier y, used at <e_scope_1, 1:17-1:18>, is not in scope";
   te "e_scope_2" "def f(x,y): (x+y) g(1,2)" "The function name g, used at <e_scope_2, 1:18-1:24>, is not in scope";
@@ -125,11 +129,6 @@ let tests =
            f(5)"
           "The function called at <e_arity_2, 2:11-2:15> expected an arity of 2, but received 1 argument";
   te "e_arity_3" "def f(): 5 f(x)" "The function called at <e_arity_3, 1:11-1:15> expected an arity of 0, but received 1 arguments";
-
-  te "e_tup_1" "let x = (1, 2) in x[2]" "Error: index out of bounds - too large";
-  te "e_tup_2" "let x = (1, 2) in x[-1]" "Error: index out of bounds - too small";
-  te "e_tup_3" "let x = (1, 2) in x[false]" "Error: index operator expects a number";
-  te "e_tup_4" "let x = 5 in x[1]" "Error: index operator expects a tuple";
 
  ]
 
