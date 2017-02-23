@@ -4,6 +4,7 @@
 extern int our_code_starts_here() asm("our_code_starts_here");
 extern void error(int err_code) asm("error");
 extern int print(int val) asm("print");
+extern int input() asm("input");
 
 const int NUM_TAG    = 0x00000001;
 const int BOOL_TRUE  = 0xFFFFFFFF;
@@ -50,6 +51,17 @@ int print(int val) {
   printHelp(val);
   printf("\n");
   return val;
+}
+
+int inputHelp(char* userIn) {
+  return BOOL_TRUE; 
+}
+
+int input() {
+  char userin[80];
+  scanf("%s", userin);
+  return inputHelp(userin);
+
 }
 
 void error(int i) {

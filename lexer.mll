@@ -21,6 +21,7 @@ rule token = parse
   | "sub1" { SUB1 }
   | "print" { PRINT }
   | "printStack" { PRINTSTACK }
+  | "input" { INPUT }
   | "if" { IF }
   | "true" { TRUE }
   | "false" { FALSE }

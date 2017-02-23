@@ -349,6 +349,12 @@ and compile_cexpr e si env num_args is_tail =
             ICall("print");
             IPop(Reg(EAX));
         ]
+        | Input -> [
+            IMov(Reg(EAX), arg);
+            IPush(Reg(EAX));
+            ICall("input");
+            IPop(Reg(EAX));
+        ]
         | IsBool ->
             [ IMov(Reg(EAX), arg); ITest(Reg(EAX), tag_as_bool); ] @
             block_true_false label_done (fun x -> IJnz(x))

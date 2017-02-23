@@ -64,5 +64,6 @@ let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
         findT = print(find(ls, 5)),
         findF = print(find(ls, 20)),
         fnthR = print(find_nth(reverse(ls), 0)),
-        apnOf = print(append(ls, reverse(ls))) in
+        apnOf = print(append(ls, reverse(ls))),
+	inpOf = print(input) in
     0
