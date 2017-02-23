@@ -29,13 +29,31 @@ def nth_ls(l, n):
         if n == 0: l
         else: nth_ls(l[1], n - 1)
 
-def nth_el(l,n): nth_ls(l,n)[0]
+def nth(l,n):
+    let a = nth_ls(l,n) in
+    if a == false: false
+    else: a[0]
+
+def hd(l):
+    if l == false: false
+    else: l[0]
+
+def tl(l):
+    if l == false: false
+    else: l[1]
+
+def find(l, n):
+    if l == false: false
+    else: if l[0] == n: true
+          else: find(l[1], n)
 
 let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
     let lenOf = print(length(ls)),
         sumOf = print(sum(ls)),
         revOf = print(reverse(ls)),
         nlsOf = print(nth_ls(ls, 5)),
-        nelOf = print(nth_el(ls, 5)),
+        nthOf = print(nth(ls, 5)),
+        findT = print(find(ls, 5)),
+        findF = print(find(ls, 20)),
         apnOf = print(append(ls, reverse(ls))) in
-    true
+    0
