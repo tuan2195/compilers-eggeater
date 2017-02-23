@@ -343,12 +343,8 @@ and compile_cexpr e si env num_args is_tail =
             ISub(Reg(EAX), Const(1 lsl 1));
             IJo(snd err_OVERFLOW);
         ]
-        | Print -> [
-            IMov(Reg(EAX), arg);
-            IPush(Reg(EAX));
-            ICall("print");
-            IPop(Reg(EAX));
-        ]
+        | Print ->
+            call "print" [arg]
         | IsBool ->
             [ IMov(Reg(EAX), arg); ITest(Reg(EAX), tag_as_bool); ] @
             block_true_false label_done (fun x -> IJnz(x))
@@ -359,7 +355,8 @@ and compile_cexpr e si env num_args is_tail =
             check_logic arg @ [
             IXor(Reg(EAX), bool_mask);
         ]
-        | PrintStack -> failwith "PrintStack not implemented"
+        | PrintStack ->
+            failwith "PrintStack not implemented"
         | IsTuple ->
             [ IMov(Reg(EAX), arg); IAnd(Reg(EAX), tag_as_bool); ICmp(Reg(EAX), HexConst(0x1)); ] @
             block_true_false label_done (fun x -> IJne(x))

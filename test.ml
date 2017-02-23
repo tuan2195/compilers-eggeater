@@ -105,9 +105,8 @@ let tests =
             reverse((0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))))"
             "(9, (8, (7, (6, (5, (4, (3, (2, (1, (0, false))))))))))";
 
-  (*te "comp_num_1" "if (5 == true): 5 else: 10" "1";*)
-  (*te "comp_num_2" "if (5 < true): 5 else: 10" "1";*)
-  (*te "comp_num_3" "if (5 > true): 5 else: 10" "1";*)
+  te "comp_num_1" "if (5 < true): 5 else: 10" "1";
+  te "comp_num_2" "if (5 > true): 5 else: 10" "1";
   te "arith_num_1" "5 + true" "2";
   te "arith_num_2" "5 - true" "2";
   te "arith_num_3" "5 * true" "2";
