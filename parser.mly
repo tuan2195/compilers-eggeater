@@ -27,7 +27,6 @@ prim1 :
   | NOT { Not }
   | PRINT { Print }
   | PRINTSTACK { PrintStack }
-  | INPUT { Input }
   | ISBOOL { IsBool }
   | ISNUM { IsNum }
   | ISTUPLE { IsTuple }
@@ -77,6 +76,7 @@ expr :
   | binop_expr { $1 }
 
 decl :
+  | INPUT { DInput((Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | DEF ID LPAREN RPAREN COLON expr { DFun($2, [], $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | DEF ID LPAREN ids RPAREN COLON expr { DFun($2, $4, $7, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
 

@@ -15,7 +15,6 @@ let string_of_op1 op =
   | Sub1 -> "sub1"
   | Print -> "print"
   | PrintStack -> "printStack"
-  | Input -> "input"
   | Not -> "!"
   | IsNum -> "isnum"
   | IsBool -> "isbool"
@@ -27,7 +26,6 @@ let name_of_op1 op =
   | Sub1 -> "Sub1"
   | Print -> "Print"
   | PrintStack -> "PrintStack"
-  | Input -> "Input"
   | Not -> "Not"
   | IsNum -> "IsNum"
   | IsBool -> "IsBool"
@@ -123,6 +121,7 @@ and string_of_adecl d =
   match d with
   | ADFun(name, args, body, _) ->
      sprintf "fun %s(%s): %s" name (ExtString.String.join ", " args) (string_of_aexpr body)
+  | ADInput(_) -> "input"
           
 let format_expr (e : 'a expr) (print_a : 'a -> string) : string =
   let maybe_a a =

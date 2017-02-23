@@ -38,6 +38,7 @@ let tag (p : 'a program) : tag program =
     | DFun(name, args, body, _) ->
        let fun_tag = tag() in
        DFun(name, List.map (fun (a, _) -> (a, tag())) args, helpE body, fun_tag)
+    | DInput(_) -> DInput(tag())
   and helpP p =
     match p with
     | Program(decls, body, _) ->
@@ -68,6 +69,7 @@ let rec untag (p : 'a program) : unit program =
     match d with
     | DFun(name, args, body, _) ->
        DFun(name, List.map (fun (a, _) -> (a, ())) args, helpE body, ())
+    | DInput(_) -> DInput(())
   and helpP p =
     match p with
     | Program(decls, body, _) ->
@@ -116,6 +118,7 @@ let atag (p : 'a aprogram) : tag aprogram =
     | ADFun(name, args, body, _) ->
        let fun_tag = tag() in
        ADFun(name, args, helpA body, fun_tag)
+    | ADInput(_) -> ADInput(tag())
   and helpP p =
     match p with
     | AProgram(decls, body, _) ->

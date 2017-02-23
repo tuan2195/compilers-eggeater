@@ -83,6 +83,7 @@ let well_formed (p : (Lexing.position * Lexing.position) program) : exn list =
              | None -> []
              | Some where -> [DuplicateId(x, where, pos)]) @ process_args rest in
        (process_args args) @ wf_E body (args @ env) funenv
+    | DInput(_) -> [] 
   in
   match p with
   | Program(decls, body, _) ->
@@ -100,7 +101,7 @@ let well_formed (p : (Lexing.position * Lexing.position) program) : exn list =
            | Some where -> [DuplicateFun(name, where, pos)]) @ dupe_funbinds rest in
      let funbind d =
        match d with
-       | DFun(name, args, _, pos) -> (name, (pos, List.length args)) in
+       | DFun(name, args, _, pos) -> (name, (pos, List.length args)) in 
      let funbinds : (string * (sourcespan * int)) list = List.map funbind decls in
      (dupe_funbinds decls)
      @ (List.concat (List.map (fun d -> wf_D d [] funbinds) decls))
@@ -349,12 +350,6 @@ and compile_cexpr e si env num_args is_tail =
             ICall("print");
             IPop(Reg(EAX));
         ]
-        | Input -> [
-            IMov(Reg(EAX), arg);
-            IPush(Reg(EAX));
-            ICall("input");
-            IPop(Reg(EAX));
-        ]
         | IsBool ->
             [ IMov(Reg(EAX), arg); ITest(Reg(EAX), tag_as_bool); ] @
             block_true_false label_done (fun x -> IJnz(x))
@@ -475,11 +470,21 @@ and optimize ls =
         what::optimize rest
 ;;
 
+let compile_input : instruction list =
+  ([
+    IPush(Reg(EAX));
+    ICall("input");
+    IPop(Reg(EAX));
+  ])
+;;
+
 let compile_decl (d : tag adecl) : instruction list =
   match d with
   | ADFun(name, args, body, _) ->
      let (prologue, comp_body, epilogue) = compile_fun name args body
      in (prologue @ comp_body @ epilogue)
+  | ADInput(_) -> compile_input
+
 ;;
 
 let compile_prog anfed =

@@ -17,11 +17,11 @@ rule token = parse
   | '\n' { new_line lexbuf; token lexbuf }
   | signed_int as x { NUM (int_of_string x) }
   | "def" { DEF }
+  | "input" { INPUT }
   | "add1" { ADD1 }
   | "sub1" { SUB1 }
   | "print" { PRINT }
   | "printStack" { PRINTSTACK }
-  | "input" { INPUT }
   | "if" { IF }
   | "true" { TRUE }
   | "false" { FALSE }
