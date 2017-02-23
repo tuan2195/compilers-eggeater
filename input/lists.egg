@@ -1,23 +1,23 @@
 def length(l):
-    length_rec(l, 0)
+    length_tail(l, 0)
 
-def length_rec(l, acc):
+def length_tail(l, acc):
     if l == false: acc
-    else: length_rec(l[1], acc + 1)
+    else: length_tail(l[1], acc + 1)
 
 def sum(l):
-    sum_rec(l, 0)
+    sum_tail(l, 0)
 
-def sum_rec(l, acc):
+def sum_tail(l, acc):
     if l == false: acc
-    else: sum_rec(l[1], acc + l[0])
+    else: sum_tail(l[1], acc + l[0])
 
 def reverse(l):
-    reverse_rec(l, false)
+    reverse_tail(l, false)
 
-def reverse_rec(l, prev):
+def reverse_tail(l, prev):
     if l[1] == false: (l[0], prev)
-    else: reverse_rec(l[1], (l[0], prev))
+    else: reverse_tail(l[1], (l[0], prev))
 
 def append(l1, l2):
     if l1 == false: l2
@@ -47,6 +47,14 @@ def find(l, n):
     else: if l[0] == n: true
           else: find(l[1], n)
 
+def find_nth(l, n):
+    find_nth_tail(l, n, 0)
+
+def find_nth_tail(l, n, a):
+    if l == false: false
+    else: if l[0] == n: a
+          else: find_nth_tail(l[1], n, a + 1)
+
 let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
     let lenOf = print(length(ls)),
         sumOf = print(sum(ls)),
@@ -55,5 +63,6 @@ let ls = (0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))) in
         nthOf = print(nth(ls, 5)),
         findT = print(find(ls, 5)),
         findF = print(find(ls, 20)),
+        fnthR = print(find_nth(reverse(ls), 0)),
         apnOf = print(append(ls, reverse(ls))) in
     0
