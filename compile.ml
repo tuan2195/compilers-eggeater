@@ -121,6 +121,7 @@ let anf (p : tag program) : unit aprogram =
     | Program(decls, body, _) -> AProgram(List.map helpD decls, helpA body, ())
   and helpD (d : tag decl) : unit adecl =
     match d with
+    | DInput(_) -> ADInput(())
     | DFun(name, args, body, _) -> ADFun(name, List.map fst args, helpA body, ())
   and helpC (e : tag expr) : (unit cexpr * (string * unit cexpr) list) =
     match e with
