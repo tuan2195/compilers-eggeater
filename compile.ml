@@ -318,20 +318,20 @@ and compile_cexpr e si env num_args is_tail =
     match e with
     | CIf (cnd, thn, els, t) ->
         let label_false = sprintf "__if_%d_false__" t in
-        let label_done = sprintf "__if_%d_done__" t in
+        let label = sprintf "__if_%d_done__" t in
         let argCond = compile_imm cnd env in
         check_if argCond @ [
             ICmp(Reg(EAX), const_false);
             IJe(label_false);
         ] @ compile_aexpr thn si env num_args true @ [
-            IJmp(label_done);
+            IJmp(label);
             ILabel(label_false);
         ] @ compile_aexpr els si env num_args true @ [
-            ILabel(label_done);
+            ILabel(label);
         ]
     | CPrim1(op, e, t) ->
         let arg = compile_imm e env in
-        let label_done = sprintf "__isboolnum_done_%d__" t in
+        let label = sprintf "__isboolnum_done_%d__" t in
         (match op with
         | Add1 ->
             check_arith arg @ [
@@ -347,10 +347,10 @@ and compile_cexpr e si env num_args is_tail =
             call "print" [arg]
         | IsBool ->
             [ IMov(Reg(EAX), arg); ITest(Reg(EAX), tag_as_bool); ] @
-            block_true_false label_done (fun x -> IJnz(x))
+            block_true_false label (fun x -> IJnz(x))
         | IsNum ->
             [ IMov(Reg(EAX), arg); ITest(Reg(EAX), tag_as_bool); ] @
-            block_true_false label_done (fun x -> IJnz(x))
+            block_true_false label (fun x -> IJnz(x))
         | Not ->
             check_logic arg @ [
             IXor(Reg(EAX), bool_mask);
@@ -359,17 +359,18 @@ and compile_cexpr e si env num_args is_tail =
             failwith "PrintStack not implemented"
         | IsTuple ->
             [ IMov(Reg(EAX), arg); IAnd(Reg(EAX), tag_as_bool); ICmp(Reg(EAX), HexConst(0x1)); ] @
-            block_true_false label_done (fun x -> IJne(x))
+            block_true_false label (fun x -> IJne(x))
         )
     | CPrim2(op, e1, e2, t) ->
         let arg1 = compile_imm e1 env in
         let arg2 = compile_imm e2 env in
-        let comp op = [ ICmp(Reg(EAX), arg2); ] @ block_true_false (sprintf "__compare_%d__" t) op in
+        let label = sprintf "__compare_%d__" t in
+        let comp op = [ ICmp(Reg(EAX), arg2); ] @ block_true_false label op in
         let prelude = match op with
             | Plus | Minus | Times -> check_arith arg2 @ check_arith arg1
             | Greater | GreaterEq | Less | LessEq -> check_compare arg2 @ check_compare arg1
             | And | Or -> check_logic arg2 @ check_logic arg1
-            | _ -> [ IMov(Reg(EAX), arg1); ]
+            | _ -> []
         in prelude @ (match op with
         | Plus -> [
             IAdd(Reg(EAX), arg2);
@@ -396,8 +397,17 @@ and compile_cexpr e si env num_args is_tail =
             comp (fun x -> IJl(x))
         | LessEq ->
             comp (fun x -> IJle(x))
-        | Eq ->
-            comp (fun x -> IJe(x))
+        | Eq -> [
+            IMov(Reg(EAX), arg1);
+            ICmp(Reg(EAX), arg2);
+            IMov(Reg(EAX), const_true);
+            IJe(label);
+            IPush(Sized(DWORD_PTR, arg1));
+            IPush(Sized(DWORD_PTR, arg2));
+            ICall("equal");
+            IAdd(Reg(ESP), Const(word_size * 2));
+            ILabel(label);
+        ]
         )
     | CApp(name, args, _) ->
         if is_tail && (num_args = List.length args) then
@@ -424,11 +434,11 @@ and compile_cexpr e si env num_args is_tail =
             (word_size, []) in
         let padding =
             if size mod 2 = 0 then [ IAdd(Reg(ESI), Const(word_size*(size+2))); ]
-            else [ IAdd(Reg(ESI), Const(word_size*(size+2))); ] in
+            else [ IAdd(Reg(ESI), Const(word_size*(size+1))); ] in
         prelude @ load @ padding
     | CGetItem(tup, idx, _) -> [
-        IMov(Sized(DWORD_PTR, Reg(ECX)), compile_imm tup env);
-        ITest(Sized(DWORD_PTR, Reg(ECX)), tag_last_bit);
+        IMov(Reg(ECX), compile_imm tup env);
+        ITest(Reg(ECX), tag_last_bit);
         IJz(snd err_NOT_TUPLE);
         ISub(Reg(ECX), Const(1)); ]
       @ check_index (compile_imm idx env) @ [
@@ -436,7 +446,7 @@ and compile_cexpr e si env num_args is_tail =
         ICmp(Reg(EAX), Const(0));
         IJl(snd err_INDEX_SMALL);
         IAdd(Reg(EAX), Const(1));
-        IMov(Sized(DWORD_PTR, Reg(EDX)), RegOffset(0, ECX));
+        IMov(Reg(EDX), RegOffset(0, ECX));
         ICmp(Reg(EAX), Reg(EDX));
         IJg(snd err_INDEX_LARGE);
         IMov(Reg(EAX), RegOffsetReg(ECX, EAX, word_size, 0));
@@ -478,6 +488,8 @@ let compile_prog anfed =
     "section .text
 extern error
 extern print
+extern input
+extern equal
 extern print_stack
 global our_code_starts_here" in
   let suffix =

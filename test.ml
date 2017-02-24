@@ -92,6 +92,15 @@ let tests =
   t "tup_15" "let x = (0, (1, (3, 4))) in x[1][1][1]" "4";
   t "tup_16" "let x = (0, (1, (3, 4))) in x[1][1][1] + x[1][1][0]" "7";
 
+  t "eq_1" "let x = (1, 2, 3) in (x == x)" "true";
+  t "eq_2" "let x = (1, 2, 3), y = (1, 2, 3) in (x == y)" "true";
+  t "eq_3" "let x = (1, 2, 3), y = (1, 2, 4) in (x == y)" "false";
+  t "eq_4" "let x = (1, 2, 3), y = (1, 2, 3, 4) in (x == y)" "false";
+  t "eq_5" "let x = ((1, 2), (3, 4), 5), y = ((1, 2), (3, 4), 5) in (x == y)" "true";
+  t "eq_6" "let x = ((1, 2), (3, 4), 5), y = ((1, 2), (3, 5), 5) in (x == y)" "false";
+  t "eq_7" "let x = (1, (2, (3, (4, false)))), y = (1, (2, (3, (4, false)))) in (x == y)" "true";
+  t "eq_8" "let x = (1, (2, (3, (4, false)))), y = (1, (2, (3, (5, false)))) in (x == y)" "false";
+
   t "ll_1" "def length(l): length_rec(l, 0)
             def length_rec(l, acc): if l == false: acc else: length_rec(l[1], acc + 1)
             length((0, (1, (2, (3, (4, (5, (6, (7, (8, (9, false)))))))))))"

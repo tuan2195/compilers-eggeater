@@ -5,8 +5,10 @@ extern int our_code_starts_here() asm("our_code_starts_here");
 extern void error(int err_code) asm("error");
 extern int print(int val) asm("print");
 extern int input() asm("input");
+extern int equal(int a, int b) asm("equal");
 
 const int NUM_TAG    = 0x00000001;
+const int TUPLE_TAG  = 0x00000007;
 const int BOOL_TRUE  = 0xFFFFFFFF;
 const int BOOL_FALSE = 0x7FFFFFFF;
 
@@ -33,8 +35,9 @@ void printHelp(int val) {
   {
     printf("false");
   }
-  else if((val & 0x7) == 0x1)
+  else if((val & TUPLE_TAG) == 0x1)
   {
+    /*printf("val = %p\n", val);*/
     int* arr = (int*)(val-1);
     int size = *arr;
     printf("(");
@@ -51,6 +54,24 @@ int print(int val) {
   printHelp(val);
   printf("\n");
   return val;
+}
+
+int equal(int a, int b)
+{
+    if (a == b)
+        return BOOL_TRUE;
+
+    if (((a & TUPLE_TAG) != 0x1) || ((b & TUPLE_TAG) != 0x1))
+        return BOOL_FALSE;
+
+    const int* tup_a = (int*)(a - 1);
+    const int* tup_b = (int*)(b - 1);
+
+    for (size_t i = 0; i <= tup_a[0]; ++i)
+        if (equal(tup_a[i], tup_b[i]) == BOOL_FALSE)
+            return BOOL_FALSE;
+
+    return BOOL_TRUE;
 }
 
 int inputHelp(char* input) {
