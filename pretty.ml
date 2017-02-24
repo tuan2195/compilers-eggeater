@@ -13,7 +13,6 @@ let string_of_op1 op =
   match op with
   | Add1 -> "add1"
   | Sub1 -> "sub1"
-  | Print -> "print"
   | PrintStack -> "printStack"
   | Not -> "!"
   | IsNum -> "isnum"
@@ -24,7 +23,6 @@ let name_of_op1 op =
   match op with
   | Add1 -> "Add1"
   | Sub1 -> "Sub1"
-  | Print -> "Print"
   | PrintStack -> "PrintStack"
   | Not -> "Not"
   | IsNum -> "IsNum"
@@ -55,7 +53,7 @@ let name_of_op2 op =
   | GreaterEq -> "GreaterEq"
   | LessEq -> "LessEq"
   | Eq -> "Eq"
-               
+
 
 let rec string_of_expr (e : 'a expr) : string =
   match e with
@@ -121,7 +119,7 @@ and string_of_adecl d =
   match d with
   | ADFun(name, args, body, _) ->
      sprintf "fun %s(%s): %s" name (ExtString.String.join ", " args) (string_of_aexpr body)
-          
+
 let format_expr (e : 'a expr) (print_a : 'a -> string) : string =
   let maybe_a a =
     let astr = print_a a in
@@ -161,7 +159,7 @@ let format_expr (e : 'a expr) (print_a : 'a -> string) : string =
     | EPrim1(op, e, a) ->
        open_label fmt "EPrim1" a;
        pp_print_string fmt (name_of_op1 op);
-       print_comma_sep fmt; help e fmt; 
+       print_comma_sep fmt; help e fmt;
        close_paren fmt
     | EPrim2(op, e1, e2, a) ->
        open_label fmt "EPrim2" a;
@@ -191,7 +189,7 @@ let format_expr (e : 'a expr) (print_a : 'a -> string) : string =
     | EGetItem(tup, idx, a) ->
        open_label fmt "EPrim1" a;
        help tup fmt;
-       print_comma_sep fmt; help idx fmt; 
+       print_comma_sep fmt; help idx fmt;
        close_paren fmt
     | ELet(binds, body, a) ->
        let print_item fmt (x, b, a) =
@@ -207,8 +205,8 @@ let format_expr (e : 'a expr) (print_a : 'a -> string) : string =
   help e str_formatter;
   flush_str_formatter ()
 ;;
-     
-    
+
+
 let rec ast_of_pos_expr (e : (Lexing.position * Lexing.position) expr) : string =
   format_expr e string_of_pos
 let rec ast_of_expr (e : 'a expr) : string =

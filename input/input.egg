@@ -1,0 +1,1 @@
+let x = input(), y = input() in x * y

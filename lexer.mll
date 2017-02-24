@@ -19,7 +19,6 @@ rule token = parse
   | "def" { DEF }
   | "add1" { ADD1 }
   | "sub1" { SUB1 }
-  | "print" { PRINT }
   | "printStack" { PRINTSTACK }
   | "if" { IF }
   | "true" { TRUE }

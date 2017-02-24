@@ -74,20 +74,23 @@ int equal(int a, int b)
     return BOOL_TRUE;
 }
 
-int inputHelp(char* input) {
-  if (!input || input[0] == 'f') {
-    return BOOL_FALSE;
-  } else if (input[0] == 't') {
-    return BOOL_TRUE;
-  } else {
-    return atoi(input) << 1;
-  }
-}
+int input()
+{
+    char buf[16];
+    /*scanf("%s", in);*/
+    fgets(buf, 16, stdin);
 
-int input() {
-  char in[80];
-  scanf("%s", in);
-  return inputHelp(in);
+    switch(buf[0])
+    {
+        case 'f':
+        case 'F':
+            return BOOL_FALSE;
+        case 't':
+        case 'T':
+            return BOOL_TRUE;
+        default:
+            return atoi(buf) << 1;
+    }
 }
 
 void error(int i) {

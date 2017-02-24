@@ -19,7 +19,7 @@ type prim1 =
   | Add1
   | Sub1
   | Not
-  | Print
+  (*| Print*)
   | PrintStack
   | IsNum
   | IsBool
@@ -53,6 +53,7 @@ and 'a expr =
 
 type 'a decl =
   | DFun of string * (string * 'a) list * 'a expr * 'a
+  | DExt of string * int
 
 type 'a program =
   | Program of 'a decl list * 'a expr * 'a
@@ -74,6 +75,7 @@ and 'a aexpr = (* anf expressions *)
   | ACExpr of 'a cexpr
 and 'a adecl =
   | ADFun of string * string list * 'a aexpr * 'a
+  | ADExt of string * int
 
 and 'a aprogram =
   | AProgram of 'a adecl list * 'a aexpr * 'a

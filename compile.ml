@@ -69,6 +69,7 @@ let well_formed (p : (Lexing.position * Lexing.position) program) : exn list =
         List.flatten (List.map (fun e -> wf_E e env funenv) expr_ls)
   and wf_D d (env : sourcespan envt) (funenv : (sourcespan * int) envt) =
     match d with
+    | DExt(_, _) -> []
     | DFun(_, args, body, _) ->
        let rec dupe x args =
          match args with
@@ -85,11 +86,12 @@ let well_formed (p : (Lexing.position * Lexing.position) program) : exn list =
        (process_args args) @ wf_E body (args @ env) funenv
   in
   match p with
-  | Program(decls, body, _) ->
+  | Program(decls, body, p_pos) ->
      let rec find name decls =
        match decls with
        | [] -> None
-       | DFun(n, args, _, pos)::rest when n = name -> Some(pos)
+       | DFun(n, _, _, pos)::rest when n = name -> Some(pos)
+       | DExt(n, _)::rest when n = name -> Some(p_pos)
        | _::rest -> find name rest in
      let rec dupe_funbinds decls =
        match decls with
@@ -97,13 +99,18 @@ let well_formed (p : (Lexing.position * Lexing.position) program) : exn list =
        | DFun(name, args, _, pos)::rest ->
           (match find name rest with
            | None -> []
-           | Some where -> [DuplicateFun(name, where, pos)]) @ dupe_funbinds rest in
+           | Some where -> [DuplicateFun(name, where, pos)]) @ dupe_funbinds rest
+       | DExt(name, _)::rest ->
+          (match find name rest with
+           | None -> []
+           | Some where -> [DuplicateFun(name, where, p_pos)]) @ dupe_funbinds rest in
      let funbind d =
        match d with
-       | DFun(name, args, _, pos) -> (name, (pos, List.length args)) in
+       | DFun(name, args, _, pos) -> (name, (pos, List.length args))
+       | DExt(name, num_args) -> (name, (p_pos, num_args)) in
      let funbinds : (string * (sourcespan * int)) list = List.map funbind decls in
      (dupe_funbinds decls)
-     @ (List.concat (List.map (fun d -> wf_D d [] funbinds) decls))
+     @ (List.flatten (List.map (fun d -> wf_D d [] funbinds) decls))
      @ (wf_E body [] funbinds)
 ;;
 
@@ -121,6 +128,7 @@ let anf (p : tag program) : unit aprogram =
   and helpD (d : tag decl) : unit adecl =
     match d with
     | DFun(name, args, body, _) -> ADFun(name, List.map fst args, helpA body, ())
+    | DExt(name, num_args) -> ADExt(name, num_args)
   and helpC (e : tag expr) : (unit cexpr * (string * unit cexpr) list) =
     match e with
     | EPrim1(op, arg, _) ->
@@ -343,8 +351,6 @@ and compile_cexpr e si env num_args is_tail =
             ISub(Reg(EAX), Const(1 lsl 1));
             IJo(snd err_OVERFLOW);
         ]
-        | Print ->
-            call "print" [arg]
         | IsBool ->
             [ IMov(Reg(EAX), arg); ITest(Reg(EAX), tag_as_bool); ] @
             block_true_false label (fun x -> IJnz(x))
@@ -481,6 +487,7 @@ let compile_decl (d : tag adecl) : instruction list =
   | ADFun(name, args, body, _) ->
      let (prologue, comp_body, epilogue) = compile_fun name args body
      in (prologue @ comp_body @ epilogue)
+  | ADExt(name, _) -> []
 ;;
 
 let compile_prog anfed =
@@ -521,13 +528,16 @@ global our_code_starts_here" in
      sprintf "%s%s\n%s%s\n" prelude as_assembly_string (to_asm main) suffix
 
 let compile_to_string prog : (exn list, string) either =
-  let errors = well_formed prog in
-  match errors with
-  | [] ->
-     let tagged : tag program = tag prog in
-     let anfed : tag aprogram = atag (anf tagged) in
-     (* printf "Prog:\n%s\n" (ast_of_expr prog); *)
-     (* printf "Tagged:\n%s\n" (format_expr tagged string_of_int); *)
-     (* printf "ANFed/tagged:\n%s\n" (format_expr anfed string_of_int); *)
-     Right(compile_prog anfed)
-  | _ -> Left(errors)
+  match prog with
+  | Program(decls, body, t) ->
+      let ext_funcs = [DExt("print", 1); DExt("input", 0)] in
+      let errors = well_formed (Program(ext_funcs @ decls, body, t)) in
+      match errors with
+      | [] ->
+         let tagged : tag program = tag prog in
+         let anfed : tag aprogram = atag (anf tagged) in
+         (* printf "Prog:\n%s\n" (ast_of_expr prog); *)
+         (* printf "Tagged:\n%s\n" (format_expr tagged string_of_int); *)
+         (* printf "ANFed/tagged:\n%s\n" (format_expr anfed string_of_int); *)
+         Right(compile_prog anfed)
+      | _ -> Left(errors)
